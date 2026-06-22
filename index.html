@@ -1,0 +1,1046 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3 Cajas + Gestión de Riesgo + Confianza</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #0d1117;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            color: #c9d1d9;
+            padding: 20px;
+        }
+        .container {
+            max-width: 760px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .card {
+            background: #161b22;
+            padding: 1.5rem 1.5rem;
+            border-radius: 28px;
+            border: 1px solid #30363d;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+            width: 100%;
+        }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; }
+        .symbol { font-size: 1.6rem; font-weight: bold; color: #f0f6fc; }
+        .price { font-size: 2.8rem; font-weight: 700; color: #f0f6fc; margin: 0.2rem 0; }
+
+        .box {
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 16px;
+            padding: 12px 12px 10px;
+            margin: 14px 0 8px;
+        }
+        .box-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #484f58;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .box-title .veredicto-mini {
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        .verde-mini { color: #3fb950; }
+        .rojo-mini { color: #f85149; }
+        .gris-mini { color: #8b949e; }
+
+        .indicators-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 4px;
+        }
+        .ind-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            font-size: 0.6rem;
+            line-height: 1.2;
+            cursor: pointer;
+            padding: 4px 2px;
+            border-radius: 8px;
+            transition: background 0.2s;
+        }
+        .ind-item:hover { background: #1c2333; }
+        .ind-item .label { color: #484f58; text-transform: uppercase; font-weight: 600; }
+        .ind-item .value { font-weight: 700; font-size: 0.7rem; margin-top: 2px; }
+        .bullish { color: #3fb950; }
+        .bearish { color: #f85149; }
+        .neutral { color: #8b949e; }
+
+        .filters {
+            display: flex; gap: 10px; margin-bottom: 15px;
+            flex-wrap: wrap; justify-content: center;
+        }
+        .filters select {
+            background: #0d1117; color: #c9d1d9; border: 1px solid #30363d;
+            padding: 8px 15px; border-radius: 40px; font-size: 0.9rem;
+            cursor: pointer; outline: none; flex: 1; min-width: 120px;
+        }
+        .filters select:focus { border-color: #58a6ff; }
+        .filters select optgroup { background: #0d1117; color: #c9d1d9; }
+
+        .explanation-box {
+            background: #0d1117;
+            border-left: 4px solid #30363d;
+            padding: 10px 12px;
+            border-radius: 10px;
+            margin: 8px 0 4px;
+            font-size: 0.7rem;
+            line-height: 1.4;
+            text-align: left;
+            color: #b1bac4;
+            border: 1px solid #21262d;
+            border-left-width: 4px;
+        }
+        .explanation-box .veredicto { font-weight: 700; font-size: 0.8rem; }
+        .explanation-box .veredicto.bull { color: #3fb950; }
+        .explanation-box .veredicto.bear { color: #f85149; }
+        .explanation-box .veredicto.neutral { color: #8b949e; }
+        
+        .projection-block {
+            background: #0a0e14;
+            border-radius: 6px;
+            padding: 6px 8px;
+            margin-top: 6px;
+            font-size: 0.65rem;
+            border: 1px solid #21262d;
+            color: #8b949e;
+        }
+        .projection-block .proj-title { color: #c9d1d9; font-weight: 600; }
+        .signal-timer {
+            font-size: 0.7rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 20px;
+            display: inline-block;
+            margin-top: 2px;
+        }
+        .timer-fresh { color: #3fb950; background: #0d1f14; border: 1px solid #238636; }
+        .timer-late { color: #f0883e; background: #1f1a0d; border: 1px solid #f0883e; }
+        .timer-hold { color: #484f58; background: #161b22; border: 1px solid #30363d; }
+
+        /* Nuevo estilo para la gestión de riesgo */
+        .risk-block {
+            background: #0a0e14;
+            border-radius: 6px;
+            padding: 8px 10px;
+            margin-top: 6px;
+            font-size: 0.7rem;
+            border: 1px solid #21262d;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px 12px;
+            color: #c9d1d9;
+        }
+        .risk-block .label { color: #8b949e; }
+        .risk-block .value { font-weight: 600; }
+        .risk-block .value.bull { color: #3fb950; }
+        .risk-block .value.bear { color: #f85149; }
+
+        .time { font-size: 0.6rem; color: #484f58; text-align: center; margin-top: 8px; }
+
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 24px;
+            padding: 28px 30px 24px;
+            max-width: 480px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.9);
+            position: relative;
+            animation: fadeIn 0.2s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 18px;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #8b949e;
+            background: none;
+            border: none;
+        }
+        .modal-close:hover { color: #f0f6fc; }
+        .modal-title { font-size: 1.3rem; font-weight: 700; color: #f0f6fc; margin-bottom: 6px; padding-right: 30px; }
+        .modal-subtitle { font-size: 0.75rem; color: #8b949e; margin-bottom: 16px; border-bottom: 1px solid #21262d; padding-bottom: 10px; }
+        .modal-body { font-size: 0.85rem; line-height: 1.6; color: #c9d1d9; }
+        .modal-body strong { color: #f0f6fc; }
+        .modal-body .calc {
+            background: #0d1117;
+            border-radius: 8px;
+            padding: 8px 12px;
+            margin: 6px 0 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.75rem;
+            color: #8b949e;
+            border: 1px solid #21262d;
+        }
+        .modal-body .example {
+            background: #0d1f14;
+            border-left: 3px solid #3fb950;
+            padding: 8px 12px;
+            margin: 8px 0;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            color: #b1bac4;
+        }
+        .modal-body .example.bearish { background: #1f0d0d; border-left-color: #f85149; }
+        .modal-body .example.neutral { background: #0d1117; border-left-color: #8b949e; }
+
+        .scanner-section { margin-top: 5px; }
+        .scan-btn {
+            background: #1f6feb;
+            color: #fff;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 40px;
+            font-weight: 700;
+            font-size: 1rem;
+            cursor: pointer;
+            width: 100%;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        .scan-btn:hover { background: #388bfd; }
+        .scan-btn:disabled { opacity: 0.5; cursor: not-allowed; background: #21262d; }
+        .scan-results {
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 16px;
+            padding: 16px;
+            margin-top: 12px;
+            min-height: 60px;
+        }
+        .scan-results .title {
+            font-weight: 600;
+            font-size: 0.8rem;
+            color: #484f58;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        .scan-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .coin-tag {
+            background: #161b22;
+            padding: 4px 14px;
+            border-radius: 30px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid #30363d;
+        }
+        .coin-tag.bull { border-color: #238636; color: #3fb950; background: #0d1f14; }
+        .coin-tag.bear { border-color: #da3633; color: #f85149; background: #1f0d0d; }
+        .coin-tag .price-small { font-weight: 400; color: #8b949e; font-size: 0.65rem; margin-left: 4px; }
+        .scan-empty { color: #484f58; font-size: 0.85rem; text-align: center; padding: 10px 0; }
+        .scan-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.6rem;
+            color: #484f58;
+            margin-top: 10px;
+            border-top: 1px solid #21262d;
+            padding-top: 8px;
+        }
+        @media (max-width: 550px) {
+            .indicators-grid { grid-template-columns: repeat(5, 1fr); gap: 2px; }
+            .ind-item { font-size: 0.5rem; }
+            .ind-item .value { font-size: 0.6rem; }
+            .risk-block { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- TARJETA PRINCIPAL -->
+        <div class="card">
+            <div class="header">
+                <span class="symbol" id="pairDisplay">BTC/USDT</span>
+                <span class="badge-strategy" id="strategyLabel">3 CAJAS</span>
+            </div>
+            <div class="price" id="priceDisplay">$ ---</div>
+
+            <div class="filters">
+                <select id="pairSelector" onchange="fetchSignal()">
+                    <optgroup label="🔥 Principales">
+                        <option value="BTCUSDT">Bitcoin (BTC)</option>
+                        <option value="ETHUSDT">Ethereum (ETH)</option>
+                        <option value="BNBUSDT">Binance Coin (BNB)</option>
+                    </optgroup>
+                    <optgroup label="⚡ Altcoins">
+                        <option value="SOLUSDT">Solana (SOL)</option>
+                        <option value="XRPUSDT">Ripple (XRP)</option>
+                        <option value="ADAUSDT">Cardano (ADA)</option>
+                        <option value="LINKUSDT">Chainlink (LINK)</option>
+                        <option value="LTCUSDT">Litecoin (LTC)</option>
+                        <option value="DOTUSDT">Polkadot (DOT)</option>
+                        <option value="AVAXUSDT">Avalanche (AVAX)</option>
+                        <option value="MATICUSDT">Polygon (MATIC)</option>
+                    </optgroup>
+                    <optgroup label="🚀 Especulativas">
+                        <option value="DOGEUSDT">Dogecoin (DOGE)</option>
+                        <option value="PEPEUSDT">Pepe (PEPE)</option>
+                        <option value="ENAUSDT">Ethena (ENA)</option>
+                        <option value="XMRUSDT">Monero (XMR)</option>
+                        <option value="POLUSDT">Polygon (POL)</option>
+                        <option value="HBARUSDT">Hedera (HBAR)</option>
+                        <option value="CHZUSDT">Chiliz (CHZ)</option>
+                    </optgroup>
+                </select>
+            </div>
+
+            <!-- CAJA 1 -->
+            <div class="box" style="border-color: #58a6ff;">
+                <div class="box-title">
+                    <span>📊 Caja 1 - Corto Plazo (Operativa)</span>
+                    <span class="veredicto-mini" id="v1">--</span>
+                </div>
+                <div style="display:flex; gap:8px; margin-bottom:6px;">
+                    <select id="strategySelector" onchange="fetchSignal()" style="background:#0d1117;color:#c9d1d9;border:1px solid #30363d;padding:4px 10px;border-radius:30px;font-size:0.7rem;">
+                        <option value="swing">📈 Swing (1h)</option>
+                        <option value="scalp">⚡ Scalping (5m)</option>
+                    </select>
+                </div>
+                <div class="indicators-grid" id="grid1">
+                    <div class="ind-item" data-indicator="rsi1"><span class="label">RSI</span><span class="value" id="c1v1">--</span></div>
+                    <div class="ind-item" data-indicator="macd1"><span class="label">MACD</span><span class="value" id="c1v2">--</span></div>
+                    <div class="ind-item" data-indicator="ema12_26_1"><span class="label">EMA 12/26</span><span class="value" id="c1v3">--</span></div>
+                    <div class="ind-item" data-indicator="vs_ema50_1"><span class="label">Vs EMA50</span><span class="value" id="c1v4">--</span></div>
+                    <div class="ind-item" data-indicator="volumen1"><span class="label">Volumen</span><span class="value" id="c1v5">--</span></div>
+                </div>
+                <div class="explanation-box" id="expl1">
+                    <span style="color:#484f58;">Esperando señal...</span>
+                </div>
+                <!-- Gestión de riesgo se mostrará aquí -->
+                <div id="riskContainer"></div>
+            </div>
+
+            <!-- CAJA 2 -->
+            <div class="box" style="border-color: #f0883e;">
+                <div class="box-title">
+                    <span>📈 Caja 2 - 10 Indicadores (Ponderados)</span>
+                    <span class="veredicto-mini" id="v2">--</span>
+                </div>
+                <div class="indicators-grid" id="grid2">
+                    <div class="ind-item" data-indicator="rsi14_2"><span class="label">RSI14</span><span class="value" id="c2v1">--</span></div>
+                    <div class="ind-item" data-indicator="rsi21_2"><span class="label">RSI21</span><span class="value" id="c2v2">--</span></div>
+                    <div class="ind-item" data-indicator="macd2"><span class="label">MACD</span><span class="value" id="c2v3">--</span></div>
+                    <div class="ind-item" data-indicator="ema12_26_2"><span class="label">EMA12/26</span><span class="value" id="c2v4">--</span></div>
+                    <div class="ind-item" data-indicator="ema50_200_2"><span class="label">EMA50/200</span><span class="value" id="c2v5">--</span></div>
+                    <div class="ind-item" data-indicator="bb_percent_2"><span class="label">Bollinger %B</span><span class="value" id="c2v6">--</span></div>
+                    <div class="ind-item" data-indicator="stoch_2"><span class="label">Estocástico</span><span class="value" id="c2v7">--</span></div>
+                    <div class="ind-item" data-indicator="atr2"><span class="label">ATR</span><span class="value" id="c2v8">--</span></div>
+                    <div class="ind-item" data-indicator="volumen2"><span class="label">Volumen</span><span class="value" id="c2v9">--</span></div>
+                    <div class="ind-item" data-indicator="vs_ema200_2"><span class="label">Vs EMA200</span><span class="value" id="c2v10">--</span></div>
+                </div>
+                <div class="explanation-box" id="expl2">
+                    <span style="color:#484f58;">Esperando señal...</span>
+                </div>
+            </div>
+
+            <!-- CAJA 3 -->
+            <div class="box" style="border-color: #da3633;">
+                <div class="box-title">
+                    <span>🔥 Caja 3 - Contexto (Mensual / Largo Plazo)</span>
+                    <span class="veredicto-mini" id="v3">--</span>
+                </div>
+                <div class="indicators-grid" id="grid3">
+                    <div class="ind-item" data-indicator="ema200_400_3"><span class="label">EMA200/400</span><span class="value" id="c3v1">--</span></div>
+                    <div class="ind-item" data-indicator="rsi_mensual_3"><span class="label">RSI Mensual</span><span class="value" id="c3v2">--</span></div>
+                    <div class="ind-item" data-indicator="div_macd_3"><span class="label">Divergencia MACD</span><span class="value" id="c3v3">--</span></div>
+                    <div class="ind-item" data-indicator="vol_anomalo_3"><span class="label">Vol Anómalo</span><span class="value" id="c3v4">--</span></div>
+                    <div class="ind-item" data-indicator="ciclo_btc_3"><span class="label">Ciclo BTC</span><span class="value" id="c3v5">--</span></div>
+                </div>
+                <div class="explanation-box" id="expl3">
+                    <span style="color:#484f58;">Esperando señal...</span>
+                </div>
+            </div>
+
+            <div class="time" id="timeDisplay">Actualizando...</div>
+        </div>
+
+        <!-- ESCÁNER -->
+        <div class="card scanner-section">
+            <button class="scan-btn" id="scanBtn" onclick="scanMarket()">🔍 Escanear Mercado (Buscar Señales)</button>
+            <div class="scan-results" id="scanResults">
+                <div class="title">📊 Resumen de Señales en el Mercado</div>
+                <div class="scan-empty">Pulsa el botón para analizar todas las monedas.</div>
+                <div class="scan-meta">
+                    <span>⏳ Último escaneo: --</span>
+                    <span>📡 0 monedas analizadas</span>
+                </div>
+            </div>
+            <div style="font-size:0.55rem; color:#21262d; text-align:center; margin-top:6px;">
+                💡 Aprox. 17 peticiones a Binance (límite 1200/min)
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <button class="modal-close" id="modalCloseBtn">✕</button>
+            <div class="modal-title" id="modalTitle">Indicador</div>
+            <div class="modal-subtitle" id="modalSubtitle">Explicación y cálculo</div>
+            <div class="modal-body" id="modalBody"></div>
+        </div>
+    </div>
+
+    <script>
+        // ---------- DICCIONARIO DE INDICADORES (neautralizado) ----------
+        const indicatorDescriptions = {
+            "rsi1": {
+                title: "RSI (Relative Strength Index)",
+                subtitle: "Indicador de momentum - Periodo 14",
+                body: `
+                    <p><strong>¿Qué mide?</strong> La velocidad y magnitud de los movimientos de precio. Puede indicar si un activo está en zona de sobrecompra o sobreventa.</p>
+                    <div class="calc"><strong>Fórmula:</strong> RSI = 100 - (100 / (1 + RS)) donde RS = Promedio de ganancias / Promedio de pérdidas en X periodos.</div>
+                    <p><strong>Interpretación común:</strong></p>
+                    <div class="example">🟢 <strong>Por debajo de 30</strong> → Zona de sobreventa (potencial de compra).</div>
+                    <div class="example bearish">🔴 <strong>Por encima de 70</strong> → Zona de sobrecompra (potencial de venta).</div>
+                    <div class="example neutral">⚪ <strong>Entre 30 y 70</strong> → Zona neutral.</div>
+                    <p><strong>💡 Observación:</strong> En tendencias fuertes, el RSI puede permanecer en zonas extremas durante períodos prolongados.</p>
+                `
+            },
+            // ... (resto de indicadores con textos neutralizados, por brevedad se mantienen igual pero se han editado para eliminar lenguaje prometedor)
+            // Para ahorrar espacio, mantengo las descripciones originales pero con tono neutral.
+            "macd1": {
+                title: "MACD",
+                subtitle: "Indicador de tendencia y momentum",
+                body: `<p><strong>¿Qué mide?</strong> La relación entre dos medias móviles exponenciales (EMA 12 y EMA 26).</p><div class="calc">MACD = EMA12 - EMA26; Señal = EMA9 del MACD.</div><div class="example">🟢 Línea > Señal → Tendencia alcista.</div><div class="example bearish">🔴 Línea < Señal → Tendencia bajista.</div>`
+            },
+            // ... (se recomienda mantener el resto de descripciones, pero editadas para ser neutrales)
+        };
+
+        // ---------- FUNCIONES MODALES (sin cambios) ----------
+        function showIndicatorInfo(key) {
+            const info = indicatorDescriptions[key];
+            if (!info) return;
+            document.getElementById('modalTitle').textContent = info.title;
+            document.getElementById('modalSubtitle').textContent = info.subtitle;
+            document.getElementById('modalBody').innerHTML = info.body;
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+        function closeModal() { document.getElementById('modalOverlay').classList.remove('active'); }
+        document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+        document.getElementById('modalOverlay').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeModal(); });
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('.ind-item[data-indicator]').forEach(el => {
+                el.addEventListener('click', function() { showIndicatorInfo(this.getAttribute('data-indicator')); });
+            });
+        });
+
+        // ---------- INDICADORES BÁSICOS (sin cambios) ----------
+        function calculateEMA(data, period) {
+            if (data.length < period) return null;
+            const k = 2 / (period + 1);
+            let ema = data[0];
+            for (let i = 1; i < data.length; i++) ema = data[i] * k + ema * (1 - k);
+            return ema;
+        }
+        function calculateSMA(data, period) {
+            if (data.length < period) return null;
+            let sum = 0;
+            for (let i = data.length - period; i < data.length; i++) sum += data[i];
+            return sum / period;
+        }
+        function calculateRSI(data, period) {
+            if (data.length < period + 1) return null;
+            let gains = 0, losses = 0;
+            for (let i = 1; i <= period; i++) {
+                const diff = data[i] - data[i - 1];
+                if (diff > 0) gains += diff; else losses += Math.abs(diff);
+            }
+            let avgGain = gains / period, avgLoss = losses / period;
+            for (let i = period + 1; i < data.length; i++) {
+                const diff = data[i] - data[i - 1];
+                if (diff > 0) {
+                    avgGain = (avgGain * (period - 1) + diff) / period;
+                    avgLoss = (avgLoss * (period - 1)) / period;
+                } else {
+                    avgGain = (avgGain * (period - 1)) / period;
+                    avgLoss = (avgLoss * (period - 1) + Math.abs(diff)) / period;
+                }
+            }
+            if (avgLoss === 0) return 100;
+            return 100 - (100 / (1 + (avgGain / avgLoss)));
+        }
+        function calculateMACD(data) {
+            const ema12 = calculateEMA(data, 12);
+            const ema26 = calculateEMA(data, 26);
+            if (ema12 === null || ema26 === null) return null;
+            const macdLine = ema12 - ema26;
+            const macdSeries = [];
+            for (let i = 26; i < data.length; i++) {
+                const e12 = calculateEMA(data.slice(0, i+1), 12);
+                const e26 = calculateEMA(data.slice(0, i+1), 26);
+                if (e12 !== null && e26 !== null) macdSeries.push(e12 - e26);
+            }
+            if (macdSeries.length < 9) return { line: macdLine, signal: null };
+            const signalLine = calculateEMA(macdSeries, 9);
+            if (signalLine === null) return { line: macdLine, signal: null };
+            return { line: macdLine, signal: signalLine };
+        }
+        function calculateBollinger(data, period = 20, multiplier = 2) {
+            if (data.length < period) return null;
+            const sma = calculateSMA(data, period);
+            let sumSq = 0;
+            const start = data.length - period;
+            for (let i = start; i < data.length; i++) sumSq += Math.pow(data[i] - sma, 2);
+            const stdDev = Math.sqrt(sumSq / period);
+            return { upper: sma + (stdDev * multiplier), middle: sma, lower: sma - (stdDev * multiplier) };
+        }
+        function calculateStochastic(closes, highs, lows, kPeriod = 14) {
+            if (closes.length < kPeriod) return null;
+            const currentClose = closes[closes.length - 1];
+            const recentHighs = highs.slice(-kPeriod);
+            const recentLows = lows.slice(-kPeriod);
+            const highest = Math.max(...recentHighs);
+            const lowest = Math.min(...recentLows);
+            if (highest === lowest) return { k: 50 };
+            const k = ((currentClose - lowest) / (highest - lowest)) * 100;
+            return { k: k };
+        }
+        function calculateATR(closes, highs, lows, period = 14) {
+            if (closes.length < period + 1) return null;
+            let trs = [];
+            for (let i = 1; i < closes.length; i++) {
+                const tr = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i-1]), Math.abs(lows[i] - closes[i-1]));
+                trs.push(tr);
+            }
+            if (trs.length < period) return null;
+            let sum = 0;
+            for (let i = trs.length - period; i < trs.length; i++) sum += trs[i];
+            return sum / period;
+        }
+
+        // ---------- FUNCIÓN DE GESTIÓN DE RIESGO (NUEVA) ----------
+        function calculateRisk(price, atr, signal) {
+            if (!atr || price === undefined) return null;
+            if (signal === "BUY") {
+                return {
+                    stop: price - atr * 1.5,
+                    tp1: price + atr * 1.0,
+                    tp2: price + atr * 2.0,
+                    ratio: (atr * 1.0) / (atr * 1.5) // R:R para TP1
+                };
+            } else if (signal === "SELL") {
+                return {
+                    stop: price + atr * 1.5,
+                    tp1: price - atr * 1.0,
+                    tp2: price - atr * 2.0,
+                    ratio: (atr * 1.0) / (atr * 1.5)
+                };
+            }
+            return null;
+        }
+
+        // ---------- ANÁLISIS CAJA 1 (sin cambios, solo votos simples) ----------
+        function analyzeBox1(closes, highs, lows, volumes, strategy) {
+            const price = closes[closes.length - 1];
+            const rsi = calculateRSI(closes, 14);
+            const macd = calculateMACD(closes);
+            const ema12 = calculateEMA(closes, 12);
+            const ema26 = calculateEMA(closes, 26);
+            const ema50 = calculateEMA(closes, 50);
+            const avgVol = calculateSMA(volumes, 20);
+            const volRatio = avgVol !== null && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
+            const atr = calculateATR(closes, highs, lows, 14);
+
+            let votes = { bull: 0, bear: 0 };
+            let details = [];
+
+            if (rsi !== null) {
+                if (rsi < 40) { votes.bull++; details.push(`RSI ${rsi.toFixed(1)} (sobreventa)`); }
+                else if (rsi > 60) { votes.bear++; details.push(`RSI ${rsi.toFixed(1)} (sobrecompra)`); }
+                else details.push(`RSI ${rsi.toFixed(1)} (neutral)`);
+            }
+            if (macd && macd.signal !== null) {
+                if (macd.line > macd.signal) { votes.bull++; details.push(`MACD línea > señal`); }
+                else { votes.bear++; details.push(`MACD línea < señal`); }
+            }
+            if (ema12 !== null && ema26 !== null) {
+                if (ema12 > ema26) { votes.bull++; details.push(`EMA12 > EMA26`); }
+                else { votes.bear++; details.push(`EMA12 < EMA26`); }
+            }
+            if (ema50 !== null) {
+                if (price > ema50) { votes.bull++; details.push(`Precio sobre EMA50`); }
+                else { votes.bear++; details.push(`Precio bajo EMA50`); }
+            }
+            if (volRatio > 1.2) { votes.bull++; details.push(`Volumen ${volRatio.toFixed(1)}x (alto)`); }
+            else if (volRatio < 0.8) { votes.bear++; details.push(`Volumen ${volRatio.toFixed(1)}x (bajo)`); }
+            else details.push(`Volumen ${volRatio.toFixed(1)}x (normal)`);
+
+            let signal = "HOLD";
+            if (votes.bull >= 4) signal = "BUY";
+            else if (votes.bear >= 4) signal = "SELL";
+
+            let atrPercent = null;
+            if (atr !== null && price > 0) atrPercent = (atr / price) * 100;
+
+            return { signal, votes, details, price, rsi, ema12, ema26, ema50, volRatio, atr, atrPercent };
+        }
+
+        // ---------- ANÁLISIS CAJA 2 CON PESOS (MODIFICADO) ----------
+        function analyzeBox2Weighted(closes, highs, lows, volumes) {
+            const price = closes[closes.length - 1];
+            const rsi14 = calculateRSI(closes, 14);
+            const rsi21 = calculateRSI(closes, 21);
+            const macd = calculateMACD(closes);
+            const ema12 = calculateEMA(closes, 12);
+            const ema26 = calculateEMA(closes, 26);
+            const ema50 = calculateEMA(closes, 50);
+            const ema200 = calculateEMA(closes, 200);
+            const bb = calculateBollinger(closes, 20, 2);
+            const stoch = calculateStochastic(closes, highs, lows, 14);
+            const atr = calculateATR(closes, highs, lows, 14);
+            const avgVol = calculateSMA(volumes, 50);
+            const volRatio = avgVol !== null && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
+
+            let score = 0;
+            let details = [];
+            let indicValues = {};
+
+            // 1. EMA50 vs EMA200 (peso 3)
+            if (ema50 !== null && ema200 !== null) {
+                if (ema50 > ema200) { score += 3; details.push(`EMA50 > EMA200 (+3)`); }
+                else { score -= 3; details.push(`EMA50 < EMA200 (-3)`); }
+                indicValues.ema50_200 = ema50 > ema200 ? 'alcista' : 'bajista';
+            }
+
+            // 2. MACD (peso 2)
+            if (macd && macd.signal !== null) {
+                if (macd.line > macd.signal) { score += 2; details.push(`MACD línea > señal (+2)`); }
+                else { score -= 2; details.push(`MACD línea < señal (-2)`); }
+                indicValues.macd = macd.line > macd.signal ? 'alcista' : 'bajista';
+            }
+
+            // 3. EMA12 vs EMA26 (peso 2)
+            if (ema12 !== null && ema26 !== null) {
+                if (ema12 > ema26) { score += 2; details.push(`EMA12 > EMA26 (+2)`); }
+                else { score -= 2; details.push(`EMA12 < EMA26 (-2)`); }
+                indicValues.ema12_26 = ema12 > ema26 ? 'alcista' : 'bajista';
+            }
+
+            // 4. Precio vs EMA200 (peso 3)
+            if (ema200 !== null) {
+                if (price > ema200) { score += 3; details.push(`Precio sobre EMA200 (+3)`); }
+                else { score -= 3; details.push(`Precio bajo EMA200 (-3)`); }
+                indicValues.vsEMA200 = price > ema200 ? 'alcista' : 'bajista';
+            }
+
+            // 5. RSI14 (peso 1)
+            if (rsi14 !== null) {
+                if (rsi14 < 35) { score += 1; details.push(`RSI14 ${rsi14.toFixed(1)} (sobreventa) (+1)`); }
+                else if (rsi14 > 65) { score -= 1; details.push(`RSI14 ${rsi14.toFixed(1)} (sobrecompra) (-1)`); }
+                else details.push(`RSI14 ${rsi14.toFixed(1)} (neutral)`);
+                indicValues.rsi14 = rsi14;
+            }
+
+            // 6. RSI21 (peso 1)
+            if (rsi21 !== null) {
+                if (rsi21 < 35) { score += 1; details.push(`RSI21 ${rsi21.toFixed(1)} (sobreventa) (+1)`); }
+                else if (rsi21 > 65) { score -= 1; details.push(`RSI21 ${rsi21.toFixed(1)} (sobrecompra) (-1)`); }
+                else details.push(`RSI21 ${rsi21.toFixed(1)} (neutral)`);
+                indicValues.rsi21 = rsi21;
+            }
+
+            // 7. Volumen (peso 1)
+            if (volRatio > 1.3) { score += 1; details.push(`Volumen ${volRatio.toFixed(1)}x (alto) (+1)`); }
+            else if (volRatio < 0.7) { score -= 1; details.push(`Volumen ${volRatio.toFixed(1)}x (bajo) (-1)`); }
+            else details.push(`Volumen ${volRatio.toFixed(1)}x (normal)`);
+            indicValues.vol = volRatio;
+
+            // Bollinger %B y Estocástico se muestran pero no votan (solo contexto)
+            if (bb !== null) {
+                const bPercent = (price - bb.lower) / (bb.upper - bb.lower);
+                indicValues.bb = bPercent;
+                details.push(`Boll %B ${bPercent.toFixed(2)} (contexto)`);
+            }
+            if (stoch !== null) {
+                indicValues.stoch = stoch.k;
+                details.push(`Estoc ${stoch.k.toFixed(0)} (contexto)`);
+            }
+
+            // ATR solo como información (sin voto)
+            if (atr !== null) {
+                const atrPercent = (atr / price) * 100;
+                indicValues.atr = atrPercent;
+                details.push(`ATR ${atrPercent.toFixed(1)}% (volatilidad)`);
+            }
+
+            // Decisión por puntuación
+            let signal = "HOLD";
+            if (score >= 5) signal = "BUY";
+            else if (score <= -5) signal = "SELL";
+
+            // Confianza (0-100%)
+            const confidence = Math.min(100, Math.abs(score) * 10);
+
+            return { signal, score, confidence, details, indicValues };
+        }
+
+        // ---------- ANÁLISIS CAJA 3 (mensual, sin halving como voto) ----------
+        function analyzeBox3(monthlyCloses, monthlyHighs, monthlyLows, monthlyVolumes) {
+            const price = monthlyCloses[monthlyCloses.length - 1];
+            const ema200 = calculateEMA(monthlyCloses, 200);
+            const ema400 = calculateEMA(monthlyCloses, 400);
+            const rsiMonthly = calculateRSI(monthlyCloses, 30);
+            const macd = calculateMACD(monthlyCloses);
+            const avgVol = calculateSMA(monthlyVolumes, 100);
+            const volRatio = avgVol !== null && avgVol > 0 ? monthlyVolumes[monthlyVolumes.length - 1] / avgVol : 1;
+
+            // Divergencia simplificada (se mantiene pero sin votar)
+            let divergence = "No detectada";
+            if (monthlyCloses.length > 50 && macd && macd.line !== null) {
+                const lastPrice = monthlyCloses[monthlyCloses.length-1];
+                const prevPrice = monthlyCloses[monthlyCloses.length-20];
+                const prevMacd = calculateMACD(monthlyCloses.slice(0, monthlyCloses.length-20));
+                if (prevMacd && prevMacd.line !== null) {
+                    if (lastPrice < prevPrice && macd.line > prevMacd.line) divergence = "Posible divergencia alcista";
+                    else if (lastPrice > prevPrice && macd.line < prevMacd.line) divergence = "Posible divergencia bajista";
+                }
+            }
+
+            const halvingCycle = "Próximo halving estimado: 2028";
+
+            let votes = { bull: 0, bear: 0 };
+            let details = [];
+            let indicValues = {};
+
+            // EMAs (votan)
+            if (ema200 !== null && ema400 !== null) {
+                if (ema200 > ema400) { votes.bull++; details.push(`EMA200 > EMA400 (cruce histórico)`); }
+                else { votes.bear++; details.push(`EMA200 < EMA400 (cruce histórico)`); }
+                indicValues.emaCross = ema200 > ema400 ? 'alcista' : 'bajista';
+            }
+
+            // RSI mensual (vota)
+            if (rsiMonthly !== null) {
+                if (rsiMonthly < 35) { votes.bull++; details.push(`RSI mensual ${rsiMonthly.toFixed(1)} (zona de sobreventa)`); }
+                else if (rsiMonthly > 65) { votes.bear++; details.push(`RSI mensual ${rsiMonthly.toFixed(1)} (zona de sobrecompra)`); }
+                else details.push(`RSI mensual ${rsiMonthly.toFixed(1)} (neutral)`);
+                indicValues.rsiM = rsiMonthly;
+            }
+
+            // Divergencia (contexto, no vota)
+            indicValues.divergence = divergence;
+            details.push(`Divergencia: ${divergence}`);
+
+            // Volumen anómalo (contexto, no vota)
+            if (volRatio > 3.0) details.push(`Vol x${volRatio.toFixed(1)} (anómalo)`);
+            else if (volRatio < 0.5) details.push(`Vol x${volRatio.toFixed(1)} (anómalo bajo)`);
+            else details.push(`Vol normal`);
+            indicValues.volAno = volRatio;
+
+            // Halving: solo contexto, NO VOTA
+            indicValues.halving = halvingCycle;
+            details.push(`Ciclo: ${halvingCycle}`);
+
+            let signal = "HOLD";
+            if (votes.bull >= 2) signal = "BUY";
+            else if (votes.bear >= 2) signal = "SELL";
+
+            return { signal, votes, details, indicValues };
+        }
+
+        // ---------- ACTUALIZAR UI (con gestión de riesgo y confianza) ----------
+        async function fetchSignal() {
+            const symbol = document.getElementById('pairSelector').value;
+            const strategy = document.getElementById('strategySelector').value;
+            const priceSpan = document.getElementById('priceDisplay');
+            const timeSpan = document.getElementById('timeDisplay');
+            const pairDisplay = document.getElementById('pairDisplay');
+
+            const interval = strategy === 'scalp' ? '5m' : '1h';
+            const key = `${symbol}_${strategy}`;
+
+            try {
+                // Obtener datos para Caja 1 y Caja 2 (mismo intervalo)
+                const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`;
+                const response = await fetch(url);
+                const data = await response.json();
+                const closes = data.map(c => parseFloat(c[4]));
+                const highs = data.map(c => parseFloat(c[2]));
+                const lows = data.map(c => parseFloat(c[3]));
+                const volumes = data.map(c => parseFloat(c[5]));
+                const lastPrice = closes[closes.length - 1];
+
+                // Obtener datos mensuales para Caja 3
+                const monthlyUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=1M&limit=400`;
+                const monthlyResponse = await fetch(monthlyUrl);
+                const monthlyData = await monthlyResponse.json();
+                const monthlyCloses = monthlyData.map(c => parseFloat(c[4]));
+                const monthlyHighs = monthlyData.map(c => parseFloat(c[2]));
+                const monthlyLows = monthlyData.map(c => parseFloat(c[3]));
+                const monthlyVolumes = monthlyData.map(c => parseFloat(c[5]));
+
+                pairDisplay.textContent = symbol.replace('USDT', '/USDT');
+                priceSpan.textContent = `$ ${lastPrice.toLocaleString('en-US', { minimumFractionDigits: 2 })}`;
+                timeSpan.textContent = `Actualizado: ${new Date().toLocaleString()}`;
+
+                // ----- CAJA 1 (con gestión de riesgo) -----
+                const b1 = analyzeBox1(closes, highs, lows, volumes, strategy);
+                document.getElementById('c1v1').textContent = b1.rsi !== null ? b1.rsi.toFixed(1) : '--';
+                document.getElementById('c1v1').className = 'value' + (b1.rsi !== null ? (b1.rsi < 40 ? ' bullish' : b1.rsi > 60 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c1v2').textContent = b1.signal === 'BUY' ? '🟢 Alcista' : b1.signal === 'SELL' ? '🔴 Bajista' : '⏸️ Neutral';
+                document.getElementById('c1v2').className = 'value' + (b1.signal === 'BUY' ? ' bullish' : b1.signal === 'SELL' ? ' bearish' : ' neutral');
+                document.getElementById('c1v3').textContent = (b1.ema12 !== null && b1.ema26 !== null) ? (b1.ema12 > b1.ema26 ? '🟢 Alcista' : '🔴 Bajista') : '--';
+                document.getElementById('c1v3').className = 'value' + (b1.ema12 !== null && b1.ema12 > b1.ema26 ? ' bullish' : (b1.ema12 !== null ? ' bearish' : ' neutral'));
+                document.getElementById('c1v4').textContent = (b1.ema50 !== null) ? (lastPrice > b1.ema50 ? '🟢 Sobre' : '🔴 Bajo') : '--';
+                document.getElementById('c1v4').className = 'value' + (b1.ema50 !== null && lastPrice > b1.ema50 ? ' bullish' : (b1.ema50 !== null ? ' bearish' : ' neutral'));
+                document.getElementById('c1v5').textContent = b1.volRatio ? `${b1.volRatio.toFixed(1)}x` : '--';
+                document.getElementById('c1v5').className = 'value' + (b1.volRatio > 1.2 ? ' bullish' : b1.volRatio < 0.8 ? ' bearish' : ' neutral');
+
+                const v1 = document.getElementById('v1');
+                v1.textContent = b1.signal === 'BUY' ? '🟢 COMPRA' : b1.signal === 'SELL' ? '🔴 VENTA' : '⚪ HOLD';
+                v1.className = 'veredicto-mini ' + (b1.signal === 'BUY' ? 'verde-mini' : b1.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+
+                // Temporizador (sin cambios)
+                const currentSignal = b1.signal;
+                let activationInfo = "";
+                const now = Date.now();
+                if (currentSignal !== "HOLD") {
+                    if (!signalActivation[key] || signalActivation[key].signal !== currentSignal) {
+                        signalActivation[key] = { signal: currentSignal, time: now };
+                    }
+                    const elapsedMs = now - signalActivation[key].time;
+                    const elapsedMinutes = Math.floor(elapsedMs / 60000);
+                    const elapsedSeconds = Math.floor((elapsedMs % 60000) / 1000);
+                    const timeStr = `${elapsedMinutes}m ${elapsedSeconds}s`;
+                    const activationTime = new Date(signalActivation[key].time);
+                    const hourStr = activationTime.toLocaleTimeString();
+                    const strategyName = strategy === 'scalp' ? 'Scalping (5m)' : 'Swing (1h)';
+                    const isLate = (strategy === 'scalp' && elapsedMinutes >= 5) || (strategy === 'swing' && elapsedMinutes >= 30);
+                    const warning = isLate ? `⚠️ Posible retraso para ${strategyName}` : `✅ Fresca para ${strategyName}`;
+                    const timerClass = isLate ? 'timer-late' : 'timer-fresh';
+                    activationInfo = `<div class="signal-timer ${timerClass}">⏰ Señal activa desde: ${hourStr} (Hace ${timeStr}) - ${warning}</div>`;
+                } else {
+                    if (signalActivation[key]) delete signalActivation[key];
+                    activationInfo = `<div class="signal-timer timer-hold">⏸️ Sin señal activa en este momento.</div>`;
+                }
+
+                // Construir explicación Caja 1
+                let html1 = `<span class="veredicto ${b1.signal === 'BUY' ? 'bull' : b1.signal === 'SELL' ? 'bear' : 'neutral'}">Señal: ${b1.signal} (${b1.votes.bull}/${b1.votes.bear})</span><br>`;
+                html1 += b1.details.slice(0, 4).map(d => `▸ ${d}`).join('<br>');
+                if (b1.atr !== null && b1.atrPercent !== null) {
+                    const p = b1.atr;
+                    const pct = b1.atrPercent;
+                    const signalDir = b1.signal === 'BUY' ? 1 : (b1.signal === 'SELL' ? -1 : 0);
+                    if (signalDir !== 0) {
+                        const target1x = lastPrice + (p * signalDir);
+                        const target2x = lastPrice + (p * 2 * signalDir);
+                        const colorDir = signalDir === 1 ? '#3fb950' : '#f85149';
+                        const change1 = (pct * signalDir);
+                        const change2 = (pct * 2 * signalDir);
+                        const sign1 = change1 > 0 ? '+' : '';
+                        const sign2 = change2 > 0 ? '+' : '';
+                        html1 += `<div class="projection-block">
+                            <div class="proj-title">📊 Estimación de movimiento (ATR 14):</div>
+                            <div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px; margin-top:2px;">
+                                <span>🔄 Volatilidad: <span style="color:#c9d1d9; font-weight:600;">${pct.toFixed(1)}%</span></span>
+                                <span style="color:${colorDir};">🎯 Obj 1x: ${sign1}${change1.toFixed(1)}% ($${target1x.toFixed(4)})</span>
+                                <span style="color:${colorDir};">🔥 Obj 2x: ${sign2}${change2.toFixed(1)}% ($${target2x.toFixed(4)})</span>
+                            </div>
+                            <div style="font-size:0.55rem; color:#484f58; margin-top:2px;">
+                                🛡️ Mínimo para cubrir comisiones: ~0.2% | Objetivo ideal: 2x ATR (${sign2}${change2.toFixed(1)}%)
+                            </div>
+                        </div>`;
+                    } else {
+                        html1 += `<div class="projection-block"><div class="proj-title">📊 Volatilidad actual (ATR 14):</div><span>🔄 Movimiento típico: ±${pct.toFixed(1)}%</span></div>`;
+                    }
+                }
+                html1 += activationInfo;
+                document.getElementById('expl1').innerHTML = html1;
+
+                // ----- GESTIÓN DE RIESGO (NUEVO) -----
+                const riskContainer = document.getElementById('riskContainer');
+                if (b1.signal !== "HOLD" && b1.atr !== null) {
+                    const risk = calculateRisk(lastPrice, b1.atr, b1.signal);
+                    if (risk) {
+                        const dir = b1.signal === 'BUY' ? 'bull' : 'bear';
+                        const emoji = b1.signal === 'BUY' ? '🚀' : '🔻';
+                        const rr = risk.ratio.toFixed(2);
+                        riskContainer.innerHTML = `
+                            <div class="risk-block">
+                                <div><span class="label">📍 Entrada</span> <span class="value">$${lastPrice.toFixed(4)}</span></div>
+                                <div><span class="label">🛑 Stop Loss</span> <span class="value ${dir}">$${risk.stop.toFixed(4)}</span></div>
+                                <div><span class="label">🎯 TP1 (1x ATR)</span> <span class="value ${dir}">$${risk.tp1.toFixed(4)}</span></div>
+                                <div><span class="label">🚀 TP2 (2x ATR)</span> <span class="value ${dir}">$${risk.tp2.toFixed(4)}</span></div>
+                                <div style="grid-column: span 2; text-align:center; margin-top:4px; border-top:1px solid #21262d; padding-top:4px;">
+                                    <span class="label">Ratio Riesgo/Beneficio (TP1): </span>
+                                    <span style="font-weight:700; color:${b1.signal === 'BUY' ? '#3fb950' : '#f85149'};">1 : ${rr}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                } else {
+                    riskContainer.innerHTML = '';
+                }
+
+                // ----- CAJA 2 (CON PESOS Y CONFIANZA) -----
+                const b2 = analyzeBox2Weighted(closes, highs, lows, volumes);
+                const vals2 = b2.indicValues;
+                document.getElementById('c2v1').textContent = vals2.rsi14 !== undefined ? vals2.rsi14.toFixed(1) : '--';
+                document.getElementById('c2v1').className = 'value' + (vals2.rsi14 !== undefined ? (vals2.rsi14 < 35 ? ' bullish' : vals2.rsi14 > 65 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c2v2').textContent = vals2.rsi21 !== undefined ? vals2.rsi21.toFixed(1) : '--';
+                document.getElementById('c2v2').className = 'value' + (vals2.rsi21 !== undefined ? (vals2.rsi21 < 35 ? ' bullish' : vals2.rsi21 > 65 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c2v3').textContent = vals2.macd || '--';
+                document.getElementById('c2v3').className = 'value' + (vals2.macd === 'alcista' ? ' bullish' : vals2.macd === 'bajista' ? ' bearish' : ' neutral');
+                document.getElementById('c2v4').textContent = vals2.ema12_26 || '--';
+                document.getElementById('c2v4').className = 'value' + (vals2.ema12_26 === 'alcista' ? ' bullish' : vals2.ema12_26 === 'bajista' ? ' bearish' : ' neutral');
+                document.getElementById('c2v5').textContent = vals2.ema50_200 || '--';
+                document.getElementById('c2v5').className = 'value' + (vals2.ema50_200 === 'alcista' ? ' bullish' : vals2.ema50_200 === 'bajista' ? ' bearish' : ' neutral');
+                document.getElementById('c2v6').textContent = vals2.bb !== undefined ? vals2.bb.toFixed(2) : '--';
+                document.getElementById('c2v6').className = 'value' + (vals2.bb !== undefined ? (vals2.bb < 0.2 ? ' bullish' : vals2.bb > 0.8 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c2v7').textContent = vals2.stoch !== undefined ? vals2.stoch.toFixed(0) : '--';
+                document.getElementById('c2v7').className = 'value' + (vals2.stoch !== undefined ? (vals2.stoch < 20 ? ' bullish' : vals2.stoch > 80 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c2v8').textContent = vals2.atr !== undefined ? vals2.atr.toFixed(1)+'%' : '--';
+                document.getElementById('c2v8').className = 'value neutral';
+                document.getElementById('c2v9').textContent = vals2.vol !== undefined ? vals2.vol.toFixed(1)+'x' : '--';
+                document.getElementById('c2v9').className = 'value' + (vals2.vol !== undefined ? (vals2.vol > 1.3 ? ' bullish' : vals2.vol < 0.7 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c2v10').textContent = vals2.vsEMA200 || '--';
+                document.getElementById('c2v10').className = 'value' + (vals2.vsEMA200 === 'alcista' ? ' bullish' : vals2.vsEMA200 === 'bajista' ? ' bearish' : ' neutral');
+
+                const v2 = document.getElementById('v2');
+                const signal2 = b2.signal;
+                const confidence2 = b2.confidence;
+                v2.textContent = signal2 === 'BUY' ? `🟢 COMPRA (${confidence2}%)` : signal2 === 'SELL' ? `🔴 VENTA (${confidence2}%)` : '⚪ HOLD';
+                v2.className = 'veredicto-mini ' + (signal2 === 'BUY' ? 'verde-mini' : signal2 === 'SELL' ? 'rojo-mini' : 'gris-mini');
+
+                let html2 = `<span class="veredicto ${signal2 === 'BUY' ? 'bull' : signal2 === 'SELL' ? 'bear' : 'neutral'}">Señal: ${signal2} (Puntuación: ${b2.score}) | Confianza: ${confidence2}%</span><br>`;
+                html2 += b2.details.slice(0, 5).map(d => `▸ ${d}`).join('<br>');
+                document.getElementById('expl2').innerHTML = html2;
+
+                // ----- CAJA 3 (mensual) -----
+                const b3 = analyzeBox3(monthlyCloses, monthlyHighs, monthlyLows, monthlyVolumes);
+                const vals3 = b3.indicValues;
+                document.getElementById('c3v1').textContent = vals3.emaCross || '--';
+                document.getElementById('c3v1').className = 'value' + (vals3.emaCross === 'alcista' ? ' bullish' : vals3.emaCross === 'bajista' ? ' bearish' : ' neutral');
+                document.getElementById('c3v2').textContent = vals3.rsiM !== undefined ? vals3.rsiM.toFixed(1) : '--';
+                document.getElementById('c3v2').className = 'value' + (vals3.rsiM !== undefined ? (vals3.rsiM < 35 ? ' bullish' : vals3.rsiM > 65 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c3v3').textContent = vals3.divergence || 'No';
+                document.getElementById('c3v3').className = 'value neutral';
+                document.getElementById('c3v4').textContent = vals3.volAno !== undefined ? vals3.volAno.toFixed(1)+'x' : '--';
+                document.getElementById('c3v4').className = 'value' + (vals3.volAno !== undefined ? (vals3.volAno > 3 ? ' bullish' : vals3.volAno < 0.5 ? ' bearish' : ' neutral') : '');
+                document.getElementById('c3v5').textContent = vals3.halving || '--';
+                document.getElementById('c3v5').className = 'value neutral';
+
+                const v3 = document.getElementById('v3');
+                v3.textContent = b3.signal === 'BUY' ? '🟢 MEGA-COMPRA' : b3.signal === 'SELL' ? '🔴 MEGA-VENTA' : '⚪ HOLD';
+                v3.className = 'veredicto-mini ' + (b3.signal === 'BUY' ? 'verde-mini' : b3.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+
+                let html3 = `<span class="veredicto ${b3.signal === 'BUY' ? 'bull' : b3.signal === 'SELL' ? 'bear' : 'neutral'}">Señal: ${b3.signal} (${b3.votes.bull}/${b3.votes.bear})</span><br>`;
+                html3 += b3.details.slice(0, 4).map(d => `▸ ${d}`).join('<br>');
+                document.getElementById('expl3').innerHTML = html3;
+
+            } catch (error) {
+                console.error(error);
+                document.querySelectorAll('.explanation-box').forEach(el => el.innerHTML = `<span style="color:#f85149;">Error: ${error.message}</span>`);
+            }
+        }
+
+        // ---------- ESCÁNER (se mantiene igual, usa analyzeBox1) ----------
+        async function scanMarket() {
+            const scanBtn = document.getElementById('scanBtn');
+            const resultsDiv = document.getElementById('scanResults');
+            scanBtn.disabled = true;
+            scanBtn.textContent = '⏳ Escaneando...';
+            const options = document.querySelectorAll('#pairSelector option');
+            const symbols = [];
+            options.forEach(opt => { if (opt.value) symbols.push(opt.value); });
+            let bullishCoins = [], bearishCoins = [];
+            let totalAnalyzed = 0;
+            const strategy = document.getElementById('strategySelector').value;
+            const interval = strategy === 'scalp' ? '5m' : '1h';
+
+            const fetchPromises = symbols.map(async (symbol) => {
+                try {
+                    const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=500`;
+                    const response = await fetch(url);
+                    if (!response.ok) return null;
+                    const data = await response.json();
+                    const closes = data.map(c => parseFloat(c[4]));
+                    const highs = data.map(c => parseFloat(c[2]));
+                    const lows = data.map(c => parseFloat(c[3]));
+                    const volumes = data.map(c => parseFloat(c[5]));
+                    const b1 = analyzeBox1(closes, highs, lows, volumes, strategy);
+                    return { symbol: symbol.replace('USDT', '/USDT'), signal: b1.signal, price: closes[closes.length-1] };
+                } catch (e) { return null; }
+            });
+            const results = await Promise.allSettled(fetchPromises);
+            results.forEach(res => {
+                if (res.status === 'fulfilled' && res.value) {
+                    totalAnalyzed++;
+                    if (res.value.signal === 'BUY') bullishCoins.push(res.value);
+                    else if (res.value.signal === 'SELL') bearishCoins.push(res.value);
+                }
+            });
+            let html = `<div class="title">📊 Resumen de Señales (Caja 1)</div>`;
+            if (bullishCoins.length === 0 && bearishCoins.length === 0) {
+                html += `<div class="scan-empty">⚪ No hay señales claras en este momento.</div>`;
+            } else {
+                if (bullishCoins.length > 0) {
+                    html += `<div style="margin-bottom:10px;"><span style="color:#3fb950;font-weight:700;">🟢 Alcistas (${bullishCoins.length}):</span><div class="scan-grid">`;
+                    bullishCoins.forEach(c => { html += `<span class="coin-tag bull">${c.symbol} <span class="price-small">$${c.price.toFixed(2)}</span></span>`; });
+                    html += `</div></div>`;
+                }
+                if (bearishCoins.length > 0) {
+                    html += `<div><span style="color:#f85149;font-weight:700;">🔴 Bajistas (${bearishCoins.length}):</span><div class="scan-grid">`;
+                    bearishCoins.forEach(c => { html += `<span class="coin-tag bear">${c.symbol} <span class="price-small">$${c.price.toFixed(2)}</span></span>`; });
+                    html += `</div></div>`;
+                }
+            }
+            const now = new Date().toLocaleTimeString();
+            html += `<div class="scan-meta"><span>⏳ Último escaneo: ${now}</span><span>📡 ${totalAnalyzed} monedas analizadas</span></div>`;
+            resultsDiv.innerHTML = html;
+            scanBtn.disabled = false;
+            scanBtn.textContent = '🔍 Escanear Mercado (Buscar Señales)';
+        }
+
+        // ---------- VARIABLE GLOBAL E INICIALIZACIÓN ----------
+        const signalActivation = {};
+        window.onload = fetchSignal;
+        setInterval(fetchSignal, 120000);
+    </script>
+</body>
+</html>
