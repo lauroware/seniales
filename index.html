@@ -892,31 +892,58 @@
                 html1 += activationInfo;
                 document.getElementById('expl1').innerHTML = html1;
 
-                // ----- GESTIÓN DE RIESGO (NUEVO) -----
-                const riskContainer = document.getElementById('riskContainer');
-                if (b1.signal !== "HOLD" && b1.atr !== null) {
-                    const risk = calculateRisk(lastPrice, b1.atr, b1.signal);
-                    if (risk) {
-                        const dir = b1.signal === 'BUY' ? 'bull' : 'bear';
-                        const emoji = b1.signal === 'BUY' ? '🚀' : '🔻';
-                        const rr = risk.ratio.toFixed(2);
-                        riskContainer.innerHTML = `
-                            <div class="risk-block">
-                                <div><span class="label">📍 Entrada</span> <span class="value">$${lastPrice.toFixed(4)}</span></div>
-                                <div><span class="label">🛑 Stop Loss</span> <span class="value ${dir}">$${risk.stop.toFixed(4)}</span></div>
-                                <div><span class="label">🎯 TP1 (1x ATR)</span> <span class="value ${dir}">$${risk.tp1.toFixed(4)}</span></div>
-                                <div><span class="label">🚀 TP2 (2x ATR)</span> <span class="value ${dir}">$${risk.tp2.toFixed(4)}</span></div>
-                                <div style="grid-column: span 2; text-align:center; margin-top:4px; border-top:1px solid #21262d; padding-top:4px;">
-                                    <span class="label">Ratio Riesgo/Beneficio (TP1): </span>
-                                    <span style="font-weight:700; color:${b1.signal === 'BUY' ? '#3fb950' : '#f85149'};">1 : ${rr}</span>
-                                </div>
-                            </div>
-                        `;
-                    }
-                } else {
-                    riskContainer.innerHTML = '';
-                }
-
+             // ----- GESTIÓN DE RIESGO CON PORCENTAJES Y COMISIONES -----
+const riskContainer = document.getElementById('riskContainer');
+if (b1.signal !== "HOLD" && b1.atr !== null) {
+    const risk = calculateRisk(lastPrice, b1.atr, b1.signal);
+    if (risk) {
+        const dir = b1.signal === 'BUY' ? 'bull' : 'bear';
+        const rr = risk.ratio.toFixed(2);
+        
+        // Calcular porcentajes
+        const pctSL = ((risk.stop - lastPrice) / lastPrice * 100);
+        const pctTP1 = ((risk.tp1 - lastPrice) / lastPrice * 100);
+        const pctTP2 = ((risk.tp2 - lastPrice) / lastPrice * 100);
+        
+        // Comisiones estimadas (Spot con BNB: 0.15%, Futuros con BNB: 0.075%)
+        const comisionSpot = 0.15;
+        const comisionFuturos = 0.075;
+        
+        const netoSL_Spot = pctSL - comisionSpot;
+        const netoTP1_Spot = pctTP1 - comisionSpot;
+        const netoTP2_Spot = pctTP2 - comisionSpot;
+        
+        const netoSL_Fut = pctSL - comisionFuturos;
+        const netoTP1_Fut = pctTP1 - comisionFuturos;
+        const netoTP2_Fut = pctTP2 - comisionFuturos;
+        
+        // Evaluar calidad del ratio
+        let calidad = '';
+        let colorCalidad = '';
+        if (rr >= 1.5) { calidad = '🟢 Buena (R:R ≥ 1.5)'; colorCalidad = '#3fb950'; }
+        else if (rr >= 1.0) { calidad = '🟡 Aceptable (R:R ≥ 1.0)'; colorCalidad = '#f0883e'; }
+        else { calidad = '🔴 Mala (R:R < 1.0)'; colorCalidad = '#f85149'; }
+        
+        riskContainer.innerHTML = `
+            <div class="risk-block">
+                <div><span class="label">📍 Entrada</span> <span class="value">$${lastPrice.toFixed(4)}</span></div>
+                <div><span class="label">🛑 Stop Loss</span> <span class="value ${dir}">$${risk.stop.toFixed(4)}</span> <span style="color:#8b949e; font-size:0.6rem;">(${pctSL.toFixed(2)}%)</span></div>
+                <div><span class="label">🎯 TP1 (1x ATR)</span> <span class="value ${dir}">$${risk.tp1.toFixed(4)}</span> <span style="color:#8b949e; font-size:0.6rem;">(${pctTP1.toFixed(2)}%)</span></div>
+                <div><span class="label">🚀 TP2 (2x ATR)</span> <span class="value ${dir}">$${risk.tp2.toFixed(4)}</span> <span style="color:#8b949e; font-size:0.6rem;">(${pctTP2.toFixed(2)}%)</span></div>
+                <div style="grid-column: span 2; text-align:center; margin-top:4px; border-top:1px solid #21262d; padding-top:4px; font-size:0.65rem;">
+                    <span class="label">Ratio R:R (TP1): </span>
+                    <span style="font-weight:700; color:${colorCalidad};">1 : ${rr} ${calidad}</span>
+                </div>
+                <div style="grid-column: span 2; font-size:0.6rem; color:#484f58; border-top:1px solid #21262d; padding-top:4px; display:flex; justify-content:space-between; flex-wrap:wrap;">
+                    <span>🔹 Spot (BNB): SL ${netoSL_Spot.toFixed(2)}% | TP1 ${netoTP1_Spot.toFixed(2)}% | TP2 ${netoTP2_Spot.toFixed(2)}%</span>
+                    <span>🔸 Futuros (BNB): SL ${netoSL_Fut.toFixed(2)}% | TP1 ${netoTP1_Fut.toFixed(2)}% | TP2 ${netoTP2_Fut.toFixed(2)}%</span>
+                </div>
+            </div>
+        `;
+    }
+} else {
+    riskContainer.innerHTML = '';
+}
                 // ----- CAJA 2 (CON PESOS Y CONFIANZA) -----
                 const b2 = analyzeBox2Weighted(closes, highs, lows, volumes);
                 const vals2 = b2.indicValues;
