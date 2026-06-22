@@ -831,11 +831,33 @@
                 document.getElementById('c1v5').textContent = b1.volRatio ? `${b1.volRatio.toFixed(1)}x` : '--';
                 document.getElementById('c1v5').className = 'value' + (b1.volRatio > 1.2 ? ' bullish' : b1.volRatio < 0.8 ? ' bearish' : ' neutral');
 
-                const v1 = document.getElementById('v1');
-                v1.textContent = b1.signal === 'BUY' ? '🟢 COMPRA' : b1.signal === 'SELL' ? '🔴 VENTA' : '⚪ HOLD';
-                v1.className = 'veredicto-mini ' + (b1.signal === 'BUY' ? 'verde-mini' : b1.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+               // ----- EVALUAR SI ES SEÑAL SÚPER FUERTE -----
+let esSuperFuerte = false;
+if (b1.signal === 'BUY' && risk && risk.ratio >= 2.0) {
+    const pctTP1_Spot = ((risk.tp1 - lastPrice) / lastPrice * 100) - 0.15;
+    if (pctTP1_Spot >= 1.0 && b2.confidence >= 70 && b1.volRatio >= 1.5) {
+        // Verificar que el precio esté sobre EMA200 (indicador de tendencia)
+        // Para simplificar, usamos el indicador de la Caja 2 (vsEMA200)
+        if (b2.indicValues && b2.indicValues.vsEMA200 === 'alcista') {
+            // Verificar que RSI no esté en sobrecompra extrema (>75)
+            if (b1.rsi !== null && b1.rsi >= 40 && b1.rsi <= 75) {
+                esSuperFuerte = true;
+            }
+        }
+    }
+}
 
-                // Temporizador (sin cambios)
+const v1 = document.getElementById('v1');
+if (esSuperFuerte) {
+    v1.textContent = '🔥 SÚPER FUERTE (COMPRA)';
+    v1.className = 'veredicto-mini verde-mini';
+    // También añadir un borde brillante a la caja
+    document.querySelector('.box[style*="border-color: #58a6ff;"]').style.borderColor = '#f0883e';
+} else {
+    v1.textContent = b1.signal === 'BUY' ? '🟢 COMPRA' : b1.signal === 'SELL' ? '🔴 VENTA' : '⚪ HOLD';
+    v1.className = 'veredicto-mini ' + (b1.signal === 'BUY' ? 'verde-mini' : b1.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+    document.querySelector('.box[style*="border-color: #58a6ff;"]').style.borderColor = '#58a6ff';
+}       // Temporizador (sin cambios)
                 const currentSignal = b1.signal;
                 let activationInfo = "";
                 const now = Date.now();

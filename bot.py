@@ -3,12 +3,12 @@ import time
 from datetime import datetime
 
 # ---------- CONFIGURACIÓN ----------
-TOKEN = '8972257486:AAGDSYa5m2yFEQsc0lPYO_bDAulKGO1qR7g'          # Cámbialo por el token de tu bot de Telegram
-CHAT_ID = '1014753754'      # Cámbialo por tu Chat ID (lo obtienes con @userinfobot)
+TOKEN = '8972257486:AAGDSYa5m2yFEQsc0lPYO_bDAulKGO1qR7g'
+CHAT_ID = '1014753754'
 MONEDAS = ['BTCUSDT', 'ETHUSDT', 'BNBUSDT', 'SOLUSDT', 'XRPUSDT', 'ADAUSDT', 'LINKUSDT', 'LTCUSDT', 'DOGEUSDT', 'PEPEUSDT']
-INTERVALO = '1h'                 # '1h' para Swing o '5m' para Scalping (cambia a tu gusto)
+INTERVALO = '1h'  # '1h' para Swing o '5m' para Scalping
 
-# ---------- INDICADORES (versión en Python) ----------
+# ---------- INDICADORES ----------
 def calcular_ema(datos, periodo):
     if len(datos) < periodo:
         return None
@@ -50,8 +50,6 @@ def calcular_macd(datos):
     if ema12 is None or ema26 is None:
         return None
     linea_macd = ema12 - ema26
-    # Para simplificar, tomamos la señal como EMA9 de la línea MACD (requiere serie)
-    # Aquí haremos una aproximación rápida con los últimos 30 datos
     serie_macd = []
     for i in range(26, len(datos)):
         e12 = calcular_ema(datos[:i+1], 12)
@@ -87,7 +85,6 @@ def analizar_moneda(simbolo, intervalo):
         volumen = [float(v[5]) for v in datos]
         precio_actual = cierre[-1]
 
-        # Cálculo de indicadores
         rsi14 = calcular_rsi(cierre, 14)
         rsi21 = calcular_rsi(cierre, 21)
         macd = calcular_macd(cierre)
@@ -97,7 +94,6 @@ def analizar_moneda(simbolo, intervalo):
         ema200 = calcular_ema(cierre, 200)
         atr = calcular_atr(cierre, maximo, minimo, 14)
 
-        # Volumen
         media_vol = sum(volumen[-50:]) / 50 if len(volumen) >= 50 else 1
         vol_ratio = volumen[-1] / media_vol if media_vol > 0 else 1
 
@@ -105,7 +101,6 @@ def analizar_moneda(simbolo, intervalo):
         score = 0
         detalles = []
 
-        # 1. EMA50 vs EMA200 (peso 3)
         if ema50 is not None and ema200 is not None:
             if ema50 > ema200:
                 score += 3
@@ -114,7 +109,6 @@ def analizar_moneda(simbolo, intervalo):
                 score -= 3
                 detalles.append('EMA50 < EMA200 (-3)')
 
-        # 2. MACD (peso 2)
         if macd and macd['senal'] is not None:
             if macd['linea'] > macd['senal']:
                 score += 2
@@ -123,7 +117,6 @@ def analizar_moneda(simbolo, intervalo):
                 score -= 2
                 detalles.append('MACD línea < señal (-2)')
 
-        # 3. EMA12 vs EMA26 (peso 2)
         if ema12 is not None and ema26 is not None:
             if ema12 > ema26:
                 score += 2
@@ -132,7 +125,6 @@ def analizar_moneda(simbolo, intervalo):
                 score -= 2
                 detalles.append('EMA12 < EMA26 (-2)')
 
-        # 4. Precio vs EMA200 (peso 3)
         if ema200 is not None:
             if precio_actual > ema200:
                 score += 3
@@ -141,7 +133,6 @@ def analizar_moneda(simbolo, intervalo):
                 score -= 3
                 detalles.append('Precio bajo EMA200 (-3)')
 
-        # 5. RSI14 (peso 1)
         if rsi14 is not None:
             if rsi14 < 35:
                 score += 1
@@ -152,7 +143,6 @@ def analizar_moneda(simbolo, intervalo):
             else:
                 detalles.append(f'RSI14 {rsi14:.1f} (neutral)')
 
-        # 6. RSI21 (peso 1)
         if rsi21 is not None:
             if rsi21 < 35:
                 score += 1
@@ -163,7 +153,6 @@ def analizar_moneda(simbolo, intervalo):
             else:
                 detalles.append(f'RSI21 {rsi21:.1f} (neutral)')
 
-        # 7. Volumen (peso 1)
         if vol_ratio > 1.3:
             score += 1
             detalles.append(f'Volumen {vol_ratio:.1f}x (alto) (+1)')
@@ -173,7 +162,6 @@ def analizar_moneda(simbolo, intervalo):
         else:
             detalles.append(f'Volumen {vol_ratio:.1f}x (normal)')
 
-        # Decisión
         senal = "HOLD"
         if score >= 5:
             senal = "BUY"
@@ -189,7 +177,6 @@ def analizar_moneda(simbolo, intervalo):
             tp2 = precio_actual + atr * 2.0
             ratio = (atr * 1.0) / (atr * 1.5) if atr > 0 else 0
 
-            # Neto en Spot (con BNB, comisión 0.15%)
             comision = 0.15
             pct_tp1 = ((tp1 - precio_actual) / precio_actual) * 100
             pct_tp2 = ((tp2 - precio_actual) / precio_actual) * 100
@@ -197,7 +184,16 @@ def analizar_moneda(simbolo, intervalo):
             neto_tp1 = pct_tp1 - comision
             neto_tp2 = pct_tp2 - comision
 
-            # Filtro de calidad: R:R >= 1.0 y TP1 neto >= 0.5%
+            # ----- NUEVO: DETECTAR SI ES SÚPER FUERTE -----
+            es_super_fuerte = False
+            if ratio >= 2.0 and neto_tp1 >= 1.0 and confianza >= 70 and vol_ratio >= 1.5:
+                # Verificar que el precio esté sobre EMA200 (tendencia alcista)
+                if ema200 is not None and precio_actual > ema200:
+                    # Verificar RSI en rango saludable (40-75)
+                    if rsi14 is not None and 40 <= rsi14 <= 75:
+                        es_super_fuerte = True
+
+            # Filtro de calidad base (R:R >= 1.0 y TP1 neto >= 0.5%)
             if ratio >= 1.0 and neto_tp1 >= 0.5:
                 return {
                     'simbolo': simbolo.replace('USDT', '/USDT'),
@@ -209,7 +205,8 @@ def analizar_moneda(simbolo, intervalo):
                     'neto_tp2': neto_tp2,
                     'stop_loss': stop_loss,
                     'tp1': tp1,
-                    'tp2': tp2
+                    'tp2': tp2,
+                    'es_super_fuerte': es_super_fuerte  # <-- NUEVO CAMPO
                 }
         return None
     except Exception as e:
@@ -235,8 +232,10 @@ def escanear_y_alertar():
     for simbolo in MONEDAS:
         resultado = analizar_moneda(simbolo, INTERVALO)
         if resultado:
+            # Si es súper fuerte, añadir encabezado
+            super_texto = "🔥 *SUPER FUERTE* 🔥\n" if resultado.get('es_super_fuerte', False) else ""
             mensaje = f"""
-📈 *SEÑAL DE RIESGO BAJO DETECTADA!*
+{super_texto}📈 *SEÑAL DE RIESGO BAJO DETECTADA!*
 Par: {resultado['simbolo']}
 Precio: ${resultado['precio']:.4f}
 Puntuación: {resultado['score']} (Confianza: {resultado['confianza']}%)
