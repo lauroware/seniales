@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Señales de Trading</title>
+    <title>Señales de Trading Pro</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -24,7 +24,7 @@
         .price { font-size: 2.8rem; font-weight: 700; color: #f0f6fc; margin: 0.2rem 0; }
         .price-change { font-size: 1rem; font-weight: 600; margin-left: 10px; }
 
-        .box { background: #0d1117; border: 1px solid #21262d; border-radius: 16px; padding: 12px 12px 10px; margin: 14px 0 8px; }
+        .box { background: #0d1117; border: 1px solid #21262d; border-radius: 16px; padding: 12px 12px 10px; margin: 14px 0 8px; transition: border 0.3s, box-shadow 0.3s; }
         .box-title { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 1px; color: #484f58; margin-bottom: 6px; display: flex; justify-content: space-between; }
         .box-title .veredicto-mini { font-weight: 700; font-size: 0.85rem; }
         .verde-mini { color: #3fb950; } .rojo-mini { color: #f85149; } .gris-mini { color: #8b949e; }
@@ -73,6 +73,12 @@
         .risk-block .value { font-weight: 600; }
         .risk-block .value.bull { color: #3fb950; } .risk-block .value.bear { color: #f85149; }
 
+        .quick-actions { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+        .qa-btn { background: #21262d; border: 1px solid #30363d; color: #c9d1d9; padding: 6px 14px; border-radius: 30px; font-size: 0.7rem; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 5px; }
+        .qa-btn:hover { border-color: #58a6ff; color: #f0f6fc; background: #0d1117; }
+        .qa-btn.binance:hover { border-color: #f0b90b; color: #f0b90b; }
+        .qa-btn.copy:hover { border-color: #3fb950; color: #3fb950; }
+
         .time { font-size: 0.6rem; color: #484f58; text-align: center; margin-top: 8px; }
         .disclaimer { font-size: 0.58rem; color: #484f58; text-align: center; margin-top: 4px; line-height: 1.4; }
 
@@ -111,6 +117,11 @@
         .bt-verdict { text-align: center; font-weight: 700; font-size: 0.85rem; padding: 8px; border-radius: 10px; border: 1px solid; margin-top: 10px; }
         .bt-caveat { font-size: 0.58rem; color: #6e7681; margin-top: 10px; line-height: 1.5; border-top: 1px solid #21262d; padding-top: 8px; }
         .bt-caveat strong { color: #8b949e; }
+        
+        /* Estilos para MEGA */
+        .box.mega-buy { border-color: #f0883e !important; box-shadow: 0 0 25px #f0883e33; }
+        .box.mega-sell { border-color: #ff0040 !important; box-shadow: 0 0 25px #ff004033; }
+
         @media (max-width: 550px) {
             .bt-grid { grid-template-columns: repeat(2, 1fr); }
             .indicators-grid { grid-template-columns: repeat(5, 1fr); gap: 2px; }
@@ -153,7 +164,7 @@
                         <option value="HBARUSDT">Hedera (HBAR)</option>
                         <option value="CHZUSDT">Chiliz (CHZ)</option>
                         <option value="SHIBUSDT">Shiba Inu (SHIB)</option>
-<option value="TWTUSDT">Trust Wallet Token (TWT)</option>
+                        <option value="TWTUSDT">Trust Wallet Token (TWT)</option>
                     </optgroup>
                 </select>
             </div>
@@ -219,6 +230,8 @@
                 </div>
                 <div class="explanation-box" id="expl1"><span style="color:#484f58;">Esperando señal...</span></div>
                 <div id="riskContainer"></div>
+                <!-- Quick Actions -->
+                <div id="quickActions" style="display:none; margin-top:8px;"></div>
             </div>
 
             <div class="box" style="border-color: #f0883e;">
@@ -262,12 +275,17 @@
 
         <div class="card scanner-section">
             <button class="scan-btn" id="scanBtn" onclick="scanMarket()">🔍 Escanear Mercado (Buscar Señales)</button>
+            <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-top:8px;">
+                <label style="font-size:0.75rem;color:#8b949e;display:flex;align-items:center;gap:6px;cursor:pointer;">
+                    <input type="checkbox" id="filterMega"> 🔥 Mostrar solo señales "MEGA" (Compra/Venta)
+                </label>
+                <span style="font-size:0.55rem; color:#21262d;">💡 Aprox. 34 peticiones a Binance</span>
+            </div>
             <div class="scan-results" id="scanResults">
                 <div class="title">📊 Resumen de Señales en el Mercado</div>
                 <div class="scan-empty">Pulsá el botón para analizar todas las monedas.</div>
                 <div class="scan-meta"><span>⏳ Último escaneo: --</span><span>📡 0 monedas analizadas</span></div>
             </div>
-            <div style="font-size:0.55rem; color:#21262d; text-align:center; margin-top:6px;">💡 Aprox. 34 peticiones a Binance (límite 1200/min)</div>
         </div>
 
         <div class="card scanner-section">
@@ -290,7 +308,7 @@
 
     <script>
         // =========================================================
-        //  CONFIGURACIÓN EN VIVO (editable desde el panel)
+        //  CONFIGURACIÓN EN VIVO
         // =========================================================
         const DEFAULTS = { box1Threshold: 3, box2Threshold: 5, slMult: 1.0, tp1Mult: 1.5, tp2Mult: 3.0 };
         const CONFIG = { ...DEFAULTS };
@@ -353,7 +371,46 @@
             document.querySelectorAll('.ind-item[data-indicator]').forEach(el => {
                 el.addEventListener('click', function() { showIndicatorInfo(this.getAttribute('data-indicator')); });
             });
+            // Pedir permiso para notificaciones
+            if ('Notification' in window && Notification.permission === 'default') {
+                Notification.requestPermission();
+            }
         });
+
+        // =========================================================
+        //  FUNCIONES DE NOTIFICACIÓN Y SONIDO
+        // =========================================================
+        function playSound() {
+            try {
+                const ctx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.frequency.value = 880;
+                osc.type = 'sine';
+                gain.gain.value = 0.3;
+                osc.start(ctx.currentTime);
+                osc.stop(ctx.currentTime + 0.3);
+                setTimeout(() => {
+                    const osc2 = ctx.createOscillator();
+                    const gain2 = ctx.createGain();
+                    osc2.connect(gain2);
+                    gain2.connect(ctx.destination);
+                    osc2.frequency.value = 1100;
+                    osc2.type = 'sine';
+                    gain2.gain.value = 0.2;
+                    osc2.start(ctx.currentTime + 0.2);
+                    osc2.stop(ctx.currentTime + 0.5);
+                }, 200);
+            } catch(e) { /* Silencio */ }
+        }
+
+        function sendNotification(title, body, tag) {
+            if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(title, { body, tag, icon: '🔔' });
+            }
+        }
 
         // =========================================================
         //  INDICADORES (Todas las funciones matemáticas)
@@ -602,6 +659,25 @@
         }
 
         // =========================================================
+        //  FUNCIONES DE ACCIÓN RÁPIDA (NUEVO)
+        // =========================================================
+        function openBinance(symbol) {
+            const pair = symbol.replace('USDT', '_USDT');
+            window.open(`https://www.binance.com/es/trade/${pair}`, '_blank');
+        }
+
+        function copyTradeDetails(symbol, price, signal, risk) {
+            if (!risk) return;
+            const dir = signal === 'BUY' ? 'COMPRA' : 'VENTA';
+            const dec = price < 1 ? 6 : 2;
+            const text = `📋 ${symbol} | ${dir}\n📍 Entrada: $${price.toFixed(dec)}\n🛑 Stop Loss: $${risk.stop.toFixed(dec)}\n🎯 TP1: $${risk.tp1.toFixed(dec)}\n🚀 TP2: $${risk.tp2.toFixed(dec)}\n📊 R:R: 1:${risk.ratio.toFixed(2)}`;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                if (btn) { btn.textContent = '✅ Copiado!'; setTimeout(() => btn.textContent = '📋 Copiar Orden', 2000); }
+            }).catch(() => alert('No se pudo copiar, copia manualmente.'));
+        }
+
+        // =========================================================
         //  FETCH (Carga de la moneda seleccionada)
         // =========================================================
         async function getKlines(symbol, interval, limit) {
@@ -689,6 +765,7 @@
                 html1 += activationInfo;
                 document.getElementById('expl1').innerHTML = html1;
 
+                // Renderizar riesgo y acciones rápidas
                 if (risk) {
                     const dirC = b1.signal === 'BUY' ? 'bull' : 'bear';
                     const rr = risk.ratio, dec = lastPrice < 1 ? 6 : 4;
@@ -704,7 +781,17 @@
                         <div style="grid-column: span 2; text-align:center; margin-top:4px; border-top:1px solid #21262d; padding-top:4px; font-size:0.65rem;"><span class="label">Ratio Riesgo:Beneficio (a TP1): </span><span style="font-weight:700; color:${colCal};">1 : ${rr.toFixed(2)} ${cal}</span></div>
                         <div style="grid-column: span 2; font-size:0.6rem; color:#484f58; border-top:1px solid #21262d; padding-top:4px; display:flex; justify-content:space-between; flex-wrap:wrap;"><span>🔹 Spot neto: SL ${(pSL-cSpot).toFixed(2)}% · TP1 ${(pT1-cSpot).toFixed(2)}% · TP2 ${(pT2-cSpot).toFixed(2)}%</span><span>🔸 Futuros neto: SL ${(pSL-cFut).toFixed(2)}% · TP1 ${(pT1-cFut).toFixed(2)}% · TP2 ${(pT2-cFut).toFixed(2)}%</span></div>
                     </div>`;
-                } else riskContainer.innerHTML = '';
+                    
+                    // Acciones rápidas
+                    const qa = document.getElementById('quickActions');
+                    qa.style.display = 'flex';
+                    qa.innerHTML = `
+                        <button class="qa-btn binance" onclick="openBinance('${symbol}')">🔗 Abrir Binance</button>
+                        <button class="qa-btn copy" id="copyBtn" onclick="copyTradeDetails('${symbol.replace('USDT', '/USDT')}', ${lastPrice}, '${b1.signal}', ${JSON.stringify(risk).replace(/"/g, '&quot;')})">📋 Copiar Orden</button>
+                    `;
+                } else {
+                    document.getElementById('quickActions').style.display = 'none';
+                }
 
                 // ===== CAJA 2 =====
                 const b2 = analyzeBox2Weighted(closes, highs, lows, volumes);
@@ -727,12 +814,11 @@
                 html2 += b2.details.slice(0, 6).map(d => `▸ ${d}`).join('<br>');
                 document.getElementById('expl2').innerHTML = html2;
 
-                // ===== SÚPER FUERTE =====
+                // ===== CAJA 3 (para ATH y contexto) =====
+                let pctFromAth = 0;
+                let athVal = 0;
                 let esSuper = false;
-                if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv.vsEMA200 === 'alcista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 45 && b1.rsi <= 78) esSuper = true;
-                const v1 = document.getElementById('v1'), box1 = document.getElementById('box1');
-                if (esSuper) { v1.textContent = '🔥 SÚPER FUERTE (COMPRA)'; v1.className = 'veredicto-mini verde-mini'; box1.style.borderColor = '#f0883e'; }
-                else { v1.textContent = b1.signal === 'BUY' ? '🟢 COMPRA' : b1.signal === 'SELL' ? '🔴 VENTA' : '⚪ HOLD'; v1.className = 'veredicto-mini ' + (b1.signal === 'BUY' ? 'verde-mini' : b1.signal === 'SELL' ? 'rojo-mini' : 'gris-mini'); box1.style.borderColor = '#58a6ff'; }
+                let esMegaSell = false;
 
                 // ===== CAJA 3 + CONSENSO =====
                 let consensusSignals = [b1.signal, b2.signal];
@@ -748,8 +834,8 @@
                     const v3 = document.getElementById('v3');
                     v3.textContent = b3.signal === 'BUY' ? '🟢 MEGA-COMPRA' : b3.signal === 'SELL' ? '🔴 MEGA-VENTA' : '⚪ HOLD';
                     v3.className = 'veredicto-mini ' + (b3.signal === 'BUY' ? 'verde-mini' : b3.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
-                    const athVal = Math.max(...wk.highs);
-                    const pctFromAth = (lastPrice - athVal) / athVal * 100;
+                    athVal = Math.max(...wk.highs);
+                    pctFromAth = (lastPrice - athVal) / athVal * 100;
                     const pctToAth = athVal > lastPrice ? (athVal / lastPrice - 1) * 100 : 0;
                     const athColor = pctFromAth > -15 ? '#3fb950' : pctFromAth > -50 ? '#f0883e' : '#8b949e';
                     const athDec = athVal < 1 ? 6 : athVal < 100 ? 4 : 2;
@@ -767,6 +853,16 @@
                     html3 += `<br>` + b3.details.slice(0, 5).map(d => `▸ ${d}`).join('<br>');
                     document.getElementById('expl3').innerHTML = athBlock + html3;
                     consensusSignals.push(b3.signal);
+
+                    // ===== SÚPER FUERTE (BUY) y MEGA SELL (NUEVO) =====
+                    const isAthGood = pctFromAth < -30; // Más de 30% por debajo del ATH
+                    if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv.vsEMA200 === 'alcista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 45 && b1.rsi <= 78 && isAthGood) {
+                        esSuper = true;
+                    }
+                    if (b1.signal === 'SELL' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv.vsEMA200 === 'bajista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 22 && b1.rsi <= 55) {
+                        esMegaSell = true;
+                    }
+
                 } catch (e3) {
                     document.getElementById('expl3').innerHTML = `<span style="color:#f0883e;">Contexto de largo plazo no disponible: ${e3.message}</span>`;
                     document.getElementById('v3').textContent = '⚪ --';
@@ -774,25 +870,51 @@
                 }
                 renderConsensus(consensusSignals);
 
+                // ===== APLICAR MEGA EN LA UI =====
+                const v1 = document.getElementById('v1'), box1 = document.getElementById('box1');
+                // Resetear clases
+                box1.classList.remove('mega-buy', 'mega-sell');
+                if (esSuper) {
+                    v1.textContent = '🔥🔥 MEGA COMPRA (¡OPORTUNIDAD!)';
+                    v1.className = 'veredicto-mini verde-mini';
+                    box1.classList.add('mega-buy');
+                    // Notificar
+                    const pairName = symbol.replace('USDT', '/USDT');
+                    sendNotification(`🚀 MEGA COMPRA DETECTADA`, `${pairName} - Subida potencial grande. Revisa la app!`, 'mega_buy');
+                    playSound();
+                } else if (esMegaSell) {
+                    v1.textContent = '🔥🔥 MEGA VENTA (¡PROTEGETE!)';
+                    v1.className = 'veredicto-mini rojo-mini';
+                    box1.classList.add('mega-sell');
+                    const pairName = symbol.replace('USDT', '/USDT');
+                    sendNotification(`🔴 MEGA VENTA DETECTADA`, `${pairName} - Posible caída fuerte. Revisa la app!`, 'mega_sell');
+                    playSound();
+                } else {
+                    v1.textContent = b1.signal === 'BUY' ? '🟢 COMPRA' : b1.signal === 'SELL' ? '🔴 VENTA' : '⚪ HOLD';
+                    v1.className = 'veredicto-mini ' + (b1.signal === 'BUY' ? 'verde-mini' : b1.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+                    box1.style.borderColor = '#58a6ff';
+                }
+
             } catch (error) {
                 console.error(error);
                 document.getElementById('priceDisplay').textContent = '$ --';
                 document.querySelectorAll('.explanation-box').forEach(el => el.innerHTML = `<span style="color:#f85149;">Error: ${error.message}</span>`);
                 document.getElementById('riskContainer').innerHTML = '';
+                document.getElementById('quickActions').style.display = 'none';
                 renderConsensus([]);
             }
         }
 
         // =========================================================
-        //  ESCÁNER MEJORADO CON IA HEURÍSTICA (OPCIÓN 1)
+        //  ESCÁNER MEJORADO CON IA HEURÍSTICA Y FILTRO MEGA
         // =========================================================
         async function scanMarket() {
             const scanBtn = document.getElementById('scanBtn');
             const resultsDiv = document.getElementById('scanResults');
+            const filterMega = document.getElementById('filterMega').checked;
             scanBtn.disabled = true;
             scanBtn.textContent = '⏳ Escaneo profundo (1h + semanal)...';
 
-            // Obtenemos la lista de símbolos
             const symbols = [];
             document.querySelectorAll('#pairSelector option').forEach(o => {
                 if (o.value) symbols.push(o.value);
@@ -805,56 +927,50 @@
             let errores = 0;
             let total = 0;
 
-            // Iteramos una por una para mostrar progreso y evitar saturar
             for (let i = 0; i < symbols.length; i++) {
                 const symbol = symbols[i];
                 scanBtn.textContent = `⏳ Analizando ${i+1}/${symbols.length} (${symbol})...`;
                 
                 try {
-                    // 1. Datos de corto/medio plazo (Caja 1 y 2)
                     const k1 = await getKlines(symbol, interval, 500);
-                    // 2. Datos semanales (Caja 3)
                     const k7 = await getKlines(symbol, '1w', 300);
                     
                     const price = k1.closes[k1.closes.length - 1];
                     
-                    // 3. Analizamos las 3 cajas
                     const b1 = analyzeBox1(k1.closes, k1.highs, k1.lows, k1.volumes);
                     const b2 = analyzeBox2Weighted(k1.closes, k1.highs, k1.lows, k1.volumes);
                     const b3 = analyzeBox3(k7.closes, k7.highs, k7.lows, k7.volumes);
                     
-                    // 4. Calculamos riesgo para saber el R:R
                     let risk = null;
                     if (b1.signal !== "HOLD" && b1.atr !== null) {
                         risk = calculateRisk(price, b1.atr, b1.signal);
                     }
 
-                    // 5. PUNTUACIÓN COMPUESTA (EL "CEREBRO" DE LA IA HEURÍSTICA)
+                    // Calcular ATH para el bonus
+                    const athVal = Math.max(...k7.highs);
+                    const pctFromAth = (price - athVal) / athVal * 100;
+                    const isAthGood = pctFromAth < -30;
+
                     let score = 0;
                     let reasons = [];
+                    let isMega = false;
 
-                    // Caja 1 (Operativa) - Peso 3
                     if (b1.signal === 'BUY') { score += 3; reasons.push('C1 alcista (+3)'); } 
                     else if (b1.signal === 'SELL') { score -= 3; reasons.push('C1 bajista (-3)'); }
 
-                    // Caja 2 (Ponderada) - Peso 4 (más importante)
                     if (b2.signal === 'BUY') { score += 4; reasons.push('C2 alcista (+4)'); } 
                     else if (b2.signal === 'SELL') { score -= 4; reasons.push('C2 bajista (-4)'); }
 
-                    // Caja 3 (Contexto) - Peso 2
                     if (b3.signal === 'BUY') { score += 2; reasons.push('C3 (contexto) alcista (+2)'); } 
                     else if (b3.signal === 'SELL') { score -= 2; reasons.push('C3 (contexto) bajista (-2)'); }
 
-                    // Bono por buen Ratio Riesgo:Beneficio (mínimo 1.5)
                     if (risk && risk.ratio > 1.5) { 
-                        const bonus = Math.min(2, risk.ratio - 1); // Máximo +2
+                        const bonus = Math.min(2, risk.ratio - 1);
                         score += bonus; 
                         reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +${bonus.toFixed(1)}`); 
                     }
 
-                    // Bono por volumen que confirma la tendencia
                     if (b1.volRatio > 1.2) { 
-                        // Determinamos si el volumen alto va en la dirección de la señal principal
                         const dir = (b1.signal === 'BUY' || b2.signal === 'BUY') ? 1 : -1;
                         if ((dir === 1 && b1.signal !== 'SELL') || (dir === -1 && b1.signal !== 'BUY')) {
                             score += 0.5; 
@@ -862,11 +978,20 @@
                         }
                     }
 
-                    // Penalización si RSI está en zona extrema en contra de la dirección
                     if (b1.rsi !== null && b1.signal === 'BUY' && b1.rsi > 75) { score -= 1; reasons.push('RSI muy sobrecomprado (>75) -1'); }
                     if (b1.rsi !== null && b1.signal === 'SELL' && b1.rsi < 25) { score -= 1; reasons.push('RSI muy sobrevendido (<25) -1'); }
 
-                    // Guardamos solo si hay una oportunidad clara (puntuación > 2 o < -2)
+                    // Detectar MEGA (igual que en fetchSignal)
+                    const iv2 = b2.indicValues;
+                    if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv2.vsEMA200 === 'alcista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 45 && b1.rsi <= 78 && isAthGood) {
+                        isMega = true;
+                        reasons.push('🔥 MEGA COMPRA');
+                    }
+                    if (b1.signal === 'SELL' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv2.vsEMA200 === 'bajista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 22 && b1.rsi <= 55) {
+                        isMega = true;
+                        reasons.push('🔥 MEGA VENTA');
+                    }
+
                     if (Math.abs(score) >= 2.5) {
                         opportunities.push({
                             symbol: symbol.replace('USDT', '/USDT'),
@@ -874,7 +999,8 @@
                             score,
                             signal: score > 0 ? 'BUY' : 'SELL',
                             reasons: reasons.join(' · '),
-                            b1, b2, b3, risk
+                            b1, b2, b3, risk,
+                            isMega: isMega
                         });
                     }
                     total++;
@@ -885,18 +1011,21 @@
                 }
             }
 
-            // 6. Ordenar de mayor a menor puntuación (los más alcistas primero)
-            opportunities.sort((a, b) => b.score - a.score);
+            // Filtrar si está marcado el checkbox
+            let filteredOpps = opportunities;
+            if (filterMega) {
+                filteredOpps = opportunities.filter(o => o.isMega === true);
+            }
 
-            // 7. Renderizar los resultados con el TOP 3 destacado
-            let html = `<div class="title">🏆 TOP 3 OPORTUNIDADES RECOMENDADAS POR EL SISTEMA</div>`;
+            filteredOpps.sort((a, b) => b.score - a.score);
+
+            let html = `<div class="title">🏆 TOP 3 OPORTUNIDADES ${filterMega ? '(SOLO MEGA)' : ''}</div>`;
             
-            if (opportunities.length === 0) {
-                html += `<div class="scan-empty">⚪ No hay oportunidades claras con la configuración actual. Prueba a bajar los umbrales en ⚙️.</div>`;
+            if (filteredOpps.length === 0) {
+                html += `<div class="scan-empty">⚪ No hay oportunidades ${filterMega ? 'MEGA' : 'claras'} con la configuración actual. ${!filterMega ? 'Prueba a bajar los umbrales en ⚙️.' : ''}</div>`;
             } else {
-                // Mostrar el Top 3
                 html += `<div style="display:flex; flex-direction:column; gap:12px; margin-bottom:20px;">`;
-                const top = opportunities.slice(0, 3);
+                const top = filteredOpps.slice(0, 3);
                 const medals = ['🥇', '🥈', '🥉'];
                 top.forEach((opp, idx) => {
                     const color = opp.signal === 'BUY' ? '#3fb950' : '#f85149';
@@ -910,11 +1039,12 @@
                         sl = opp.risk.stop < 1 ? opp.risk.stop.toFixed(6) : opp.risk.stop.toFixed(2);
                         tp = opp.risk.tp1 < 1 ? opp.risk.tp1.toFixed(6) : opp.risk.tp1.toFixed(2);
                     }
+                    const megaBadge = opp.isMega ? '🔥 MEGA ' : '';
                     html += `
-                        <div style="background:#0d1117; border:1px solid ${color}; border-radius:14px; padding:14px; box-shadow: 0 0 15px ${color}22;">
+                        <div style="background:#0d1117; border:2px solid ${color}; border-radius:14px; padding:14px; box-shadow: 0 0 20px ${color}33;">
                             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
                                 <span style="font-size:1.3rem; font-weight:700;">${medals[idx]} ${opp.symbol}</span>
-                                <span style="background:${color}22; color:${color}; padding:4px 14px; border-radius:40px; font-weight:700;">${sign} · Score: ${opp.score.toFixed(1)}</span>
+                                <span style="background:${color}22; color:${color}; padding:4px 14px; border-radius:40px; font-weight:700;">${megaBadge}${sign} · Score: ${opp.score.toFixed(1)}</span>
                             </div>
                             <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(100px,1fr)); gap:8px; margin-top:8px; font-size:0.75rem; color:#8b949e;">
                                 <span>💰 Precio: <strong style="color:#f0f6fc;">$${entry}</strong></span>
@@ -925,21 +1055,21 @@
                                 <span>🎯 TP1: <strong style="color:#3fb950;">$${tp}</strong></span>
                             </div>
                             <div style="font-size:0.7rem; color:#b1bac4; margin-top:8px; border-top:1px solid #21262d; padding-top:6px;">
-                                🧠 <strong>Justificación del sistema:</strong> ${opp.reasons}
+                                🧠 <strong>Justificación:</strong> ${opp.reasons}
                             </div>
                         </div>
                     `;
                 });
                 html += `</div>`;
 
-                // Mostrar el resto de oportunidades (las que no entraron en el top)
-                html += `<div class="title" style="margin-top:8px;">📋 Resto de oportunidades (${opportunities.length - 3})</div>`;
-                if (opportunities.length > 3) {
+                html += `<div class="title" style="margin-top:8px;">📋 Resto de oportunidades (${filteredOpps.length - 3})</div>`;
+                if (filteredOpps.length > 3) {
                     html += `<div class="scan-grid">`;
-                    opportunities.slice(3).forEach(opp => {
+                    filteredOpps.slice(3).forEach(opp => {
                         const cls = opp.signal === 'BUY' ? 'bull' : 'bear';
                         const sign = opp.signal === 'BUY' ? '🟢' : '🔴';
-                        html += `<span class="coin-tag ${cls}">${sign} ${opp.symbol} <span class="price-small">Score ${opp.score.toFixed(1)}</span></span>`;
+                        const megaTag = opp.isMega ? '🔥' : '';
+                        html += `<span class="coin-tag ${cls}">${sign} ${megaTag} ${opp.symbol} <span class="price-small">Score ${opp.score.toFixed(1)}</span></span>`;
                     });
                     html += `</div>`;
                 } else {
@@ -954,7 +1084,7 @@
         }
 
         // =========================================================
-        //  BACKTEST
+        //  BACKTEST (sin cambios, se mantiene igual)
         // =========================================================
         async function getKlinesPaged(symbol, interval, pages) {
             let all = [], endTime = undefined;
