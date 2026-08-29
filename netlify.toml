@@ -3,4 +3,4 @@ directory = "netlify/functions"
 
 [[scheduled_functions]]
 name = "scan-schedule"
-cron = "0 */2 * * *"   # Cambia a "0 */1 * * *" para 1 hora, o "*/30 * * * *" para 30 min
+cron = "*/15 * * * *"   # Cada 15 minutos
