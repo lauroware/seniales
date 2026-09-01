@@ -5,6 +5,15 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 // ============================================================
+//  UMBRALES CONFIGURABLES (por defecto 3 y 5, como en tu web)
+//  Puedes cambiarlos en Netlify con:
+//    UMBRAL_CAJA1 = 2  (para más señales)
+//    UMBRAL_CAJA2 = 4
+// ============================================================
+const UMBRAL_CAJA1 = parseInt(process.env.UMBRAL_CAJA1) || 3;
+const UMBRAL_CAJA2 = parseInt(process.env.UMBRAL_CAJA2) || 5;
+
+// ============================================================
 //  LISTA COMPLETA DE MONEDAS (TODAS ACTIVAS)
 // ============================================================
 const COINS_ACTIVE = [
@@ -15,7 +24,7 @@ const COINS_ACTIVE = [
 ];
 
 // ============================================================
-//  FUNCIONES DE INDICADORES (igual que antes)
+//  FUNCIONES DE INDICADORES (idénticas a tu web)
 // ============================================================
 function calculateEMA(data, period) {
   if (!data || data.length < period) return null;
@@ -88,7 +97,7 @@ function calculateSMA(data, period) {
 }
 
 // ============================================================
-//  ANÁLISIS DE CAJA 1 (corto plazo, 4 indicadores)
+//  ANÁLISIS DE CAJA 1 (igual que tu web)
 // ============================================================
 function analyzeBox1(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
@@ -107,10 +116,9 @@ function analyzeBox1(closes, highs, lows, volumes) {
   if (ema12 !== null && ema26 !== null) { if (ema12 > ema26) bull++; else bear++; }
   if (ema50 !== null) { if (price > ema50) bull++; else bear++; }
 
-  const THRESHOLD = 3;
   let signal = "HOLD";
-  if (bull >= THRESHOLD) signal = "BUY";
-  else if (bear >= THRESHOLD) signal = "SELL";
+  if (bull >= UMBRAL_CAJA1) signal = "BUY";
+  else if (bear >= UMBRAL_CAJA1) signal = "SELL";
 
   return {
     signal,
@@ -127,7 +135,7 @@ function analyzeBox1(closes, highs, lows, volumes) {
 }
 
 // ============================================================
-//  ANÁLISIS DE CAJA 2 (ponderada, 10 indicadores)
+//  ANÁLISIS DE CAJA 2 (igual que tu web)
 // ============================================================
 function analyzeBox2Weighted(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
@@ -166,10 +174,9 @@ function analyzeBox2Weighted(closes, highs, lows, volumes) {
   if (volRatio > 1.3) score += 1;
   else if (volRatio < 0.7) score -= 1;
 
-  const THRESHOLD = 5;
   let signal = "HOLD";
-  if (score >= THRESHOLD) signal = "BUY";
-  else if (score <= -THRESHOLD) signal = "SELL";
+  if (score >= UMBRAL_CAJA2) signal = "BUY";
+  else if (score <= -UMBRAL_CAJA2) signal = "SELL";
   const confidence = Math.min(100, Math.abs(score) * 10);
 
   return {
@@ -181,7 +188,7 @@ function analyzeBox2Weighted(closes, highs, lows, volumes) {
 }
 
 // ============================================================
-//  ANÁLISIS DE CAJA 3 (contexto semanal / largo plazo)
+//  ANÁLISIS DE CAJA 3 (contexto semanal)
 // ============================================================
 function analyzeBox3(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
@@ -221,7 +228,7 @@ function analyzeBox3(closes, highs, lows, volumes) {
 }
 
 // ============================================================
-//  CÁLCULO DE RIESGO
+//  CÁLCULO DE RIESGO (con multiplicadores ATR)
 // ============================================================
 function calculateRisk(price, atr, signal) {
   if (!atr || price === undefined) return null;
@@ -284,7 +291,7 @@ async function sendTelegram(message) {
 //  FUNCIÓN PRINCIPAL (se ejecuta según el cron)
 // ============================================================
 exports.handler = async (event, context) => {
-  console.log("🔍 Iniciando escaneo automático de oportunidades...");
+  console.log("🔍 Iniciando escaneo automático (igual que tu web)...");
   let allSignals = [];
   let megaAlerts = [];
 
@@ -309,7 +316,7 @@ exports.handler = async (event, context) => {
         risk = calculateRisk(price, b1.atr, b1.signal);
       }
 
-      // Detectar MEGA COMPRA (Caja1)
+      // Detectar MEGA COMPRA (Caja1) - igual que tu web
       let isMega1 = false;
       let megaType1 = "";
       if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 &&
@@ -326,7 +333,7 @@ exports.handler = async (event, context) => {
         megaType1 = "🔴 MEGA VENTA (C1)";
       }
 
-      // Detectar MEGA de Caja3
+      // Detectar MEGA de Caja3 (contexto)
       let isMega3 = false;
       let megaType3 = "";
       if (b3.signal === 'BUY' && b3.votes.bull >= 2) {
@@ -337,13 +344,27 @@ exports.handler = async (event, context) => {
         megaType3 = "🔴 MEGA CONTEXTO (C3) - BAJISTA";
       }
 
-      // Puntuación combinada
+      // ====== CALCULAR SCORE IGUAL QUE EN TU WEB ======
       let score = 0;
-      if (b1.signal === 'BUY') score += 3;
-      else if (b1.signal === 'SELL') score -= 3;
-      score += b2.score * 0.5;
-      if (b3.signal === 'BUY') score += 2;
-      else if (b3.signal === 'SELL') score -= 2;
+      let reasons = [];
+
+      // Caja1: +3 si BUY, -3 si SELL
+      if (b1.signal === 'BUY') { score += 3; reasons.push('C1 alcista (+3)'); }
+      else if (b1.signal === 'SELL') { score -= 3; reasons.push('C1 bajista (-3)'); }
+
+      // Caja2: +4 si BUY, -4 si SELL
+      if (b2.signal === 'BUY') { score += 4; reasons.push('C2 alcista (+4)'); }
+      else if (b2.signal === 'SELL') { score -= 4; reasons.push('C2 bajista (-4)'); }
+
+      // Caja3: +2 si BUY, -2 si SELL
+      if (b3.signal === 'BUY') { score += 2; reasons.push('C3 alcista (+2)'); }
+      else if (b3.signal === 'SELL') { score -= 2; reasons.push('C3 bajista (-2)'); }
+
+      // Bonus por R:R excelente (≥1.5) -> +0.5
+      if (risk && risk.ratio >= 1.5) {
+        score += 0.5;
+        reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
+      }
 
       // Guardar señal si tiene alguna dirección (BUY/SELL) o es MEGA
       if (b1.signal !== "HOLD" || b2.signal !== "HOLD" || b3.signal !== "HOLD" || isMega1 || isMega3) {
@@ -355,6 +376,7 @@ exports.handler = async (event, context) => {
           b3,
           risk,
           score,
+          reasons,
           isMega1,
           megaType1,
           isMega3,
@@ -364,7 +386,7 @@ exports.handler = async (event, context) => {
         });
       }
 
-      // Si hay MEGA (C1 o C3), guardar para alerta independiente
+      // Si hay MEGA, preparar alerta independiente
       if (isMega1 || isMega3) {
         const nombre = symbol.replace('USDT', '/USDT');
         let mensaje = `<b>🔥 ALERTA MEGA</b>\n<b>${nombre}</b>\n`;
@@ -386,13 +408,11 @@ exports.handler = async (event, context) => {
     }
   }
 
-  // Ordenar todas las señales por puntuación (de mayor a menor)
+  // Ordenar por score (de mayor a menor)
   allSignals.sort((a, b) => b.score - a.score);
-
-  // Seleccionar las 3 mejores (las que tengan score más alto, independientemente de compra/venta)
   const top3 = allSignals.slice(0, 3);
 
-  // Construir mensaje principal
+  // Construir mensaje principal (formato idéntico al que muestras)
   let message = `<b>📊 TOP 3 OPORTUNIDADES</b>\n`;
   message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n\n`;
 
@@ -401,32 +421,37 @@ exports.handler = async (event, context) => {
   } else {
     top3.forEach((item, idx) => {
       const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-      // Determinamos la dirección principal (priorizamos Caja1, luego Caja2, luego Caja3)
+      // Dirección principal: priorizamos Caja1, luego Caja2, luego Caja3
       let signalDir = item.b1.signal !== "HOLD" ? item.b1.signal : 
                      (item.b2.signal !== "HOLD" ? item.b2.signal : item.b3.signal);
       const color = signalDir === 'BUY' ? '🟢' : signalDir === 'SELL' ? '🔴' : '⚪';
       
-      // Marcar si es MEGA
+      // Marcar MEGA si corresponde
       let megaTag = "";
       if (item.isMega1 || item.isMega3) {
-        megaTag = "🔥 MEGA ";
+        megaTag = " 🔥MEGA";
       }
-      message += `${emoji} <b>${item.symbol}</b> ${color} ${signalDir}  |  Score: ${item.score.toFixed(1)}\n`;
-      message += `   💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}\n`;
+
+      message += `${emoji} <b>${item.symbol}</b> ${color} ${signalDir}${megaTag} · Score: ${item.score.toFixed(1)}\n`;
+      message += `💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}`;
+      if (item.b1.rsi !== null) message += ` 📊 RSI (14): ${item.b1.rsi.toFixed(1)}`;
+      if (item.b1.atrPercent !== null) message += ` ⚡ ATR: ${item.b1.atrPercent.toFixed(1)}%`;
       if (item.risk) {
-        message += `   🎯 TP1: $${item.risk.tp1.toFixed(item.price < 1 ? 6 : 2)}  |  🛑 SL: $${item.risk.stop.toFixed(item.price < 1 ? 6 : 2)}\n`;
-        message += `   📈 R:R: ${item.risk.ratio.toFixed(2)}  |  📊 RSI: ${item.b1.rsi !== null ? item.b1.rsi.toFixed(1) : '--'}\n`;
+        message += ` 📈 R:R: ${item.risk.ratio.toFixed(2)}`;
+        message += ` 🛑 SL: $${item.risk.stop.toFixed(item.price < 1 ? 6 : 2)}`;
+        message += ` 🎯 TP1: $${item.risk.tp1.toFixed(item.price < 1 ? 6 : 2)}`;
       }
-      if (item.isMega1) message += `   ${item.megaType1}\n`;
-      if (item.isMega3) message += `   ${item.megaType3}\n`;
-      message += `   📉 Desde ATH: ${item.pctFromAth.toFixed(1)}%\n\n`;
+      message += `\n🧠 Justificación: ${item.reasons.join(' · ')}`;
+      if (item.isMega1) message += `\n   ${item.megaType1}`;
+      if (item.isMega3) message += `\n   ${item.megaType3}`;
+      message += `\n📉 Desde ATH: ${item.pctFromAth.toFixed(1)}%\n\n`;
     });
   }
 
-  // Enviar mensaje principal (SIEMPRE, aunque no haya señales)
+  // Enviar mensaje principal
   await sendTelegram(message);
 
-  // Si hay alertas MEGA (C1 o C3), enviar mensajes adicionales (uno por cada MEGA)
+  // Enviar alertas MEGA adicionales
   if (megaAlerts.length > 0) {
     for (const alert of megaAlerts) {
       await sendTelegram(alert);
