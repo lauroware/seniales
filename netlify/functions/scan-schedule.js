@@ -6,8 +6,8 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
 // ============================================================
 //  UMBRALES CONFIGURABLES (por defecto 3 y 5, como en tu web)
-//  Puedes cambiarlos en Netlify con:
-//    UMBRAL_CAJA1 = 2  (para más señales)
+//  Si en tu web tienes otros, ponlos en las variables de entorno:
+//    UMBRAL_CAJA1 = 2
 //    UMBRAL_CAJA2 = 4
 // ============================================================
 const UMBRAL_CAJA1 = parseInt(process.env.UMBRAL_CAJA1) || 3;
@@ -291,7 +291,7 @@ async function sendTelegram(message) {
 //  FUNCIÓN PRINCIPAL (se ejecuta según el cron)
 // ============================================================
 exports.handler = async (event, context) => {
-  console.log("🔍 Iniciando escaneo automático (igual que tu web)...");
+  console.log("🔍 Iniciando escaneo (umbrales C1=" + UMBRAL_CAJA1 + ", C2=" + UMBRAL_CAJA2 + ")");
   let allSignals = [];
   let megaAlerts = [];
 
@@ -316,7 +316,7 @@ exports.handler = async (event, context) => {
         risk = calculateRisk(price, b1.atr, b1.signal);
       }
 
-      // Detectar MEGA COMPRA (Caja1) - igual que tu web
+      // Detectar MEGA COMPRA (Caja1)
       let isMega1 = false;
       let megaType1 = "";
       if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 &&
@@ -333,7 +333,7 @@ exports.handler = async (event, context) => {
         megaType1 = "🔴 MEGA VENTA (C1)";
       }
 
-      // Detectar MEGA de Caja3 (contexto)
+      // Detectar MEGA de Caja3
       let isMega3 = false;
       let megaType3 = "";
       if (b3.signal === 'BUY' && b3.votes.bull >= 2) {
@@ -366,25 +366,24 @@ exports.handler = async (event, context) => {
         reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
       }
 
-      // Guardar señal si tiene alguna dirección (BUY/SELL) o es MEGA
-      if (b1.signal !== "HOLD" || b2.signal !== "HOLD" || b3.signal !== "HOLD" || isMega1 || isMega3) {
-        allSignals.push({
-          symbol: symbol.replace('USDT', '/USDT'),
-          price,
-          b1,
-          b2,
-          b3,
-          risk,
-          score,
-          reasons,
-          isMega1,
-          megaType1,
-          isMega3,
-          megaType3,
-          ath,
-          pctFromAth
-        });
-      }
+      // Guardar TODAS las monedas (incluso si no hay señal) para depuración
+      // pero solo si tienen algún indicador no nulo (prácticamente todas)
+      allSignals.push({
+        symbol: symbol.replace('USDT', '/USDT'),
+        price,
+        b1,
+        b2,
+        b3,
+        risk,
+        score,
+        reasons,
+        isMega1,
+        megaType1,
+        isMega3,
+        megaType3,
+        ath,
+        pctFromAth
+      });
 
       // Si hay MEGA, preparar alerta independiente
       if (isMega1 || isMega3) {
@@ -407,6 +406,10 @@ exports.handler = async (event, context) => {
       console.warn(`Error con ${symbol}: ${err.message}`);
     }
   }
+
+  // Log de todos los scores para depuración
+  console.log("Scores calculados:");
+  allSignals.forEach(s => console.log(`${s.symbol}: ${s.score.toFixed(2)} - ${s.reasons.join(' | ')}`));
 
   // Ordenar por score (de mayor a menor)
   allSignals.sort((a, b) => b.score - a.score);
