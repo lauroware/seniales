@@ -1,6 +1,5 @@
 // ============================================================
 //  LEE LAS CREDENCIALES DE LAS VARIABLES DE ENTORNO (NETLIFY)
-//  Así el token NO queda en el código.
 // ============================================================
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -9,17 +8,14 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 //  LISTA COMPLETA DE MONEDAS (TODAS ACTIVAS)
 // ============================================================
 const COINS_ACTIVE = [
-  // 🔥 Principales
   "BTCUSDT", "ETHUSDT", "BNBUSDT",
-  // ⚡ Altcoins
   "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", "DOTUSDT", "AVAXUSDT",
-  // 🚀 Especulativas (todas)
   "DOGEUSDT", "PEPEUSDT", "ENAUSDT", "TLMUSDT", "POLUSDT", "HBARUSDT",
   "CHZUSDT", "SHIBUSDT", "TWTUSDT"
 ];
 
 // ============================================================
-//  FUNCIONES DE INDICADORES (copiadas de tu HTML)
+//  FUNCIONES DE INDICADORES (igual que antes)
 // ============================================================
 function calculateEMA(data, period) {
   if (!data || data.length < period) return null;
@@ -92,7 +88,7 @@ function calculateSMA(data, period) {
 }
 
 // ============================================================
-//  ANÁLISIS DE CAJAS (igual que en tu web)
+//  ANÁLISIS DE CAJA 1 (corto plazo, 4 indicadores)
 // ============================================================
 function analyzeBox1(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
@@ -130,6 +126,9 @@ function analyzeBox1(closes, highs, lows, volumes) {
   };
 }
 
+// ============================================================
+//  ANÁLISIS DE CAJA 2 (ponderada, 10 indicadores)
+// ============================================================
 function analyzeBox2Weighted(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
   const rsi14 = calculateRSI(closes, 14);
@@ -181,6 +180,49 @@ function analyzeBox2Weighted(closes, highs, lows, volumes) {
   };
 }
 
+// ============================================================
+//  ANÁLISIS DE CAJA 3 (contexto semanal / largo plazo)
+// ============================================================
+function analyzeBox3(closes, highs, lows, volumes) {
+  const price = closes[closes.length - 1];
+  const ema50 = calculateEMA(closes, 50);
+  const ema200 = calculateEMA(closes, 200);
+  const rsiW = calculateRSI(closes, 14);
+  const macd = calculateMACD(closes);
+  const avgVol = calculateSMA(volumes, 50);
+  const volRatio = avgVol && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
+
+  let divergence = "No detectada";
+  if (closes.length > 40 && macd && macd.line !== null) {
+    const lb = 10, lastP = closes[closes.length - 1], prevP = closes[closes.length - 1 - lb];
+    const prevMacd = calculateMACD(closes.slice(0, closes.length - lb));
+    if (prevMacd && prevMacd.line !== null) {
+      if (lastP < prevP && macd.line > prevMacd.line) divergence = "Alcista (posible)";
+      else if (lastP > prevP && macd.line < prevMacd.line) divergence = "Bajista (posible)";
+    }
+  }
+
+  let bull = 0, bear = 0, details = [], iv = {};
+  if (ema50 !== null && ema200 !== null) {
+    if (ema50 > ema200) { bull++; iv.emaCross = 'alcista'; } else { bear++; iv.emaCross = 'bajista'; }
+  } else { iv.emaCross = 'sin datos'; }
+  if (rsiW !== null) {
+    if (rsiW < 40) bull++;
+    else if (rsiW > 65) bear++;
+  }
+  iv.divergence = divergence;
+  iv.volAno = volRatio;
+  iv.halving = "Halving 2024 · próx. ~2028";
+
+  let signal = "HOLD";
+  if (bull >= 2) signal = "BUY";
+  else if (bear >= 2) signal = "SELL";
+  return { signal, votes: { bull, bear }, details, indicValues: iv, hasLongData: ema50 !== null && ema200 !== null };
+}
+
+// ============================================================
+//  CÁLCULO DE RIESGO
+// ============================================================
 function calculateRisk(price, atr, signal) {
   if (!atr || price === undefined) return null;
   const slMult = 1.0, tp1Mult = 1.5, tp2Mult = 3.0;
@@ -239,11 +281,12 @@ async function sendTelegram(message) {
 }
 
 // ============================================================
-//  FUNCIÓN PRINCIPAL (se ejecuta según el cron)
+//  FUNCIÓN PRINCIPAL
 // ============================================================
 exports.handler = async (event, context) => {
-  console.log("🔍 Iniciando escaneo automático de MEGAs...");
-  let megaDetected = [];
+  console.log("🔍 Iniciando escaneo automático de oportunidades...");
+  let allSignals = [];
+  let megaAlerts = []; // para avisos especiales de MEGA (incluyendo Caja3)
 
   for (const symbol of COINS_ACTIVE) {
     try {
@@ -253,67 +296,141 @@ exports.handler = async (event, context) => {
       const price = hourly.closes[hourly.closes.length - 1];
       const b1 = analyzeBox1(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
       const b2 = analyzeBox2Weighted(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
+      const b3 = analyzeBox3(weekly.closes, weekly.highs, weekly.lows, weekly.volumes);
 
-      // ATH semanal
+      // ATH
       const ath = Math.max(...weekly.highs);
       const pctFromAth = (price - ath) / ath * 100;
       const isAthGood = pctFromAth < -30;
 
+      // Calcular riesgo si hay señal en Caja1
       let risk = null;
       if (b1.signal !== "HOLD" && b1.atr !== null) {
         risk = calculateRisk(price, b1.atr, b1.signal);
       }
 
-      let isMega = false;
-      let megaType = "";
-
-      // MEGA COMPRA
+      // Detectar MEGA COMPRA (Caja1)
+      let isMega1 = false;
+      let megaType1 = "";
       if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 &&
           b2.confidence >= 60 && b2.indicValues.vsEMA200 === 'alcista' &&
           b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 45 && b1.rsi <= 78 &&
           isAthGood) {
-        isMega = true;
-        megaType = "🚀 MEGA COMPRA";
+        isMega1 = true;
+        megaType1 = "🚀 MEGA COMPRA (C1)";
       }
-
-      // MEGA VENTA
       if (b1.signal === 'SELL' && risk && risk.ratio >= 1.5 &&
           b2.confidence >= 60 && b2.indicValues.vsEMA200 === 'bajista' &&
           b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 22 && b1.rsi <= 55) {
-        isMega = true;
-        megaType = "🔴 MEGA VENTA";
+        isMega1 = true;
+        megaType1 = "🔴 MEGA VENTA (C1)";
       }
 
-      if (isMega) {
-        const nombre = symbol.replace('USDT', '/USDT');
-        const dec = price < 1 ? 6 : 2;
-        const mensaje = `<b>🔥 ${megaType}</b>\n` +
-                        `<b>${nombre}</b>\n` +
-                        `💰 Precio: $${price.toFixed(dec)}\n` +
-                        `📊 RSI: ${b1.rsi !== null ? b1.rsi.toFixed(1) : '--'}\n` +
-                        `📈 R:R: ${risk ? risk.ratio.toFixed(2) : '--'}\n` +
-                        `📉 Desde ATH: ${pctFromAth.toFixed(1)}%\n` +
-                        `🎯 TP1: $${risk ? risk.tp1.toFixed(dec) : '--'}\n` +
-                        `🛑 SL: $${risk ? risk.stop.toFixed(dec) : '--'}\n` +
-                        `⏰ ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}`;
-        megaDetected.push(mensaje);
+      // Detectar MEGA de Caja3 (contexto semanal)
+      let isMega3 = false;
+      let megaType3 = "";
+      if (b3.signal === 'BUY' && b3.votes.bull >= 2) {
+        isMega3 = true;
+        megaType3 = "🟢 MEGA CONTEXTO (C3) - ALCISTA";
+      } else if (b3.signal === 'SELL' && b3.votes.bear >= 2) {
+        isMega3 = true;
+        megaType3 = "🔴 MEGA CONTEXTO (C3) - BAJISTA";
       }
+
+      // Puntuación combinada (Caja1 + Caja2 + Caja3)
+      let score = 0;
+      if (b1.signal === 'BUY') score += 3;
+      else if (b1.signal === 'SELL') score -= 3;
+      score += b2.score * 0.5; // ponderación
+      if (b3.signal === 'BUY') score += 2;
+      else if (b3.signal === 'SELL') score -= 2;
+
+      // Almacenar oportunidad si hay señal (BUY/SELL) o si es MEGA (para mostrarla aunque sea HOLD)
+      if (b1.signal !== "HOLD" || b2.signal !== "HOLD" || b3.signal !== "HOLD" || isMega1 || isMega3) {
+        allSignals.push({
+          symbol: symbol.replace('USDT', '/USDT'),
+          price,
+          b1,
+          b2,
+          b3,
+          risk,
+          score,
+          isMega1,
+          megaType1,
+          isMega3,
+          megaType3,
+          ath,
+          pctFromAth
+        });
+      }
+
+      // Si hay MEGA (C1 o C3), guardar para alerta independiente
+      if (isMega1 || isMega3) {
+        const nombre = symbol.replace('USDT', '/USDT');
+        let mensaje = `<b>🔥 ALERTA MEGA</b>\n<b>${nombre}</b>\n`;
+        if (isMega1) mensaje += `${megaType1}\n`;
+        if (isMega3) mensaje += `${megaType3}\n`;
+        mensaje += `💰 Precio: $${price.toFixed(price < 1 ? 6 : 2)}\n`;
+        if (risk) {
+          mensaje += `🎯 TP1: $${risk.tp1.toFixed(price < 1 ? 6 : 2)}\n`;
+          mensaje += `🛑 SL: $${risk.stop.toFixed(price < 1 ? 6 : 2)}\n`;
+          mensaje += `📈 R:R: ${risk.ratio.toFixed(2)}\n`;
+        }
+        mensaje += `📉 Desde ATH: ${pctFromAth.toFixed(1)}%\n`;
+        mensaje += `⏰ ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}`;
+        megaAlerts.push(mensaje);
+      }
+
     } catch (err) {
       console.warn(`Error con ${symbol}: ${err.message}`);
     }
   }
 
-  // Enviar resumen si hay MEGAs
-  if (megaDetected.length > 0) {
-    const titulo = `🚨 <b>${megaDetected.length} SEÑAL(ES) MEGA DETECTADA(S)</b>\n\n`;
-    await sendTelegram(titulo + megaDetected.join('\n\n---\n\n'));
-    console.log(`✅ ${megaDetected.length} MEGA(s) notificada(s)`);
+  // Ordenar todas las señales por puntuación (de mayor a menor)
+  allSignals.sort((a, b) => b.score - a.score);
+
+  // Seleccionar las 3 mejores (las que tengan score más alto, independientemente de compra/venta)
+  const top3 = allSignals.slice(0, 3);
+
+  // Construir mensaje principal
+  let message = `<b>📊 TOP 3 OPORTUNIDADES</b>\n`;
+  message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n\n`;
+
+  if (top3.length === 0) {
+    message += `⚪ No se encontraron oportunidades destacadas en este escaneo.`;
+  } else {
+    top3.forEach((item, idx) => {
+      const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+      const signalDir = item.b1.signal !== "HOLD" ? item.b1.signal : (item.b2.signal !== "HOLD" ? item.b2.signal : item.b3.signal);
+      const color = signalDir === 'BUY' ? '🟢' : signalDir === 'SELL' ? '🔴' : '⚪';
+      const megaTag = item.isMega1 || item.isMega3 ? '🔥 MEGA ' : '';
+      message += `${emoji} <b>${item.symbol}</b> ${color} ${signalDir}  |  Score: ${item.score.toFixed(1)}\n`;
+      message += `   💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}\n`;
+      if (item.risk) {
+        message += `   🎯 TP1: $${item.risk.tp1.toFixed(item.price < 1 ? 6 : 2)}  |  🛑 SL: $${item.risk.stop.toFixed(item.price < 1 ? 6 : 2)}\n`;
+        message += `   📈 R:R: ${item.risk.ratio.toFixed(2)}  |  📊 RSI: ${item.b1.rsi !== null ? item.b1.rsi.toFixed(1) : '--'}\n`;
+      }
+      if (item.isMega1) message += `   ${item.megaType1}\n`;
+      if (item.isMega3) message += `   ${item.megaType3}\n`;
+      message += `   📉 Desde ATH: ${item.pctFromAth.toFixed(1)}%\n\n`;
+    });
+  }
+
+  // Enviar mensaje principal
+  await sendTelegram(message);
+
+  // Si hay alertas MEGA (C1 o C3), enviar mensajes adicionales (uno por cada MEGA)
+  if (megaAlerts.length > 0) {
+    for (const alert of megaAlerts) {
+      await sendTelegram(alert);
+    }
+    console.log(`✅ ${megaAlerts.length} alertas MEGA enviadas.`);
   } else {
     console.log("🟢 Sin MEGAs en este escaneo.");
   }
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: `Escaneo completado. ${megaDetected.length} MEGAs encontradas.` })
+    body: JSON.stringify({ message: `Escaneo completado. ${top3.length} oportunidades, ${megaAlerts.length} MEGAs.` })
   };
 };
