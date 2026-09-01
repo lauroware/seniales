@@ -4,22 +4,18 @@
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
-// Umbrales más bajos para que sea más sensible
-const UMBRAL_CAJA1 = 2;  // Antes era 3
-const UMBRAL_CAJA2 = 4;  // Antes era 5
+const UMBRAL_CAJA1 = 2;
+const UMBRAL_CAJA2 = 4;
 
-// ============================================================
-//  LISTA DE MONEDAS
-// ============================================================
+// SOLO SÍMBOLOS VÁLIDOS (los más comunes)
 const COINS_ACTIVE = [
   "BTCUSDT", "ETHUSDT", "BNBUSDT",
-  "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", "DOTUSDT", "AVAXUSDT",
-  "DOGEUSDT", "PEPEUSDT", "ENAUSDT", "TLMUSDT", "POLUSDT", "HBARUSDT",
-  "CHZUSDT", "SHIBUSDT", "TWTUSDT"
+  "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", 
+  "DOGEUSDT", "PEPEUSDT", "SHIBUSDT"
 ];
 
 // ============================================================
-//  FUNCIONES DE INDICADORES (resumidas)
+//  FUNCIONES DE INDICADORES (resumidas, igual que antes)
 // ============================================================
 function calculateEMA(data, period) {
   if (!data || data.length < period) return null;
@@ -238,13 +234,22 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS
+//  OBTENER DATOS (con mejor manejo de errores)
 // ============================================================
 async function getKlines(symbol, interval, limit) {
   const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
   const res = await fetch(url);
   const data = await res.json();
-  if (!Array.isArray(data)) throw new Error(`${symbol}: sin datos`);
+  // Si Binance devuelve un error
+  if (data.code && data.msg) {
+    throw new Error(`${symbol}: ${data.msg} (código ${data.code})`);
+  }
+  if (!Array.isArray(data)) {
+    throw new Error(`${symbol}: respuesta inválida (no es un array)`);
+  }
+  if (data.length === 0) {
+    throw new Error(`${symbol}: sin datos (array vacío)`);
+  }
   return {
     closes: data.map(c => parseFloat(c[4])),
     highs: data.map(c => parseFloat(c[2])),
@@ -283,6 +288,7 @@ async function sendTelegram(message) {
 exports.handler = async (event, context) => {
   console.log("🔍 Iniciando escaneo...");
   let allSignals = [];
+  let errores = [];
 
   for (const symbol of COINS_ACTIVE) {
     try {
@@ -303,7 +309,7 @@ exports.handler = async (event, context) => {
         risk = calculateRisk(price, b1.atr, b1.signal);
       }
 
-      // ===== SCORE (igual que tu web) =====
+      // Score
       let score = 0;
       let reasons = [];
 
@@ -321,7 +327,8 @@ exports.handler = async (event, context) => {
         reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
       }
 
-      // --- Guardar TODAS las monedas, aunque sea HOLD ---
+      const signalDir = b1.signal !== "HOLD" ? b1.signal : (b2.signal !== "HOLD" ? b2.signal : b3.signal);
+
       allSignals.push({
         symbol: symbol.replace('USDT', '/USDT'),
         price,
@@ -332,28 +339,28 @@ exports.handler = async (event, context) => {
         score,
         reasons,
         pctFromAth,
-        signalDir: b1.signal !== "HOLD" ? b1.signal : (b2.signal !== "HOLD" ? b2.signal : b3.signal)
+        signalDir
       });
 
-      console.log(`✅ ${symbol} -> Score: ${score.toFixed(1)}, Señal: ${b1.signal}/${b2.signal}/${b3.signal}`);
+      console.log(`✅ ${symbol} -> Score: ${score.toFixed(1)}, Señal: ${signalDir}`);
 
     } catch (err) {
       console.warn(`❌ Error con ${symbol}: ${err.message}`);
+      errores.push(`${symbol}: ${err.message}`);
     }
   }
 
-  // Ordenar por score (de mayor a menor)
+  // Ordenar y top 3
   allSignals.sort((a, b) => b.score - a.score);
   const top3 = allSignals.slice(0, 3);
 
-  console.log(`📈 Top 3: ${top3.map(s => s.symbol).join(', ')}`);
-
   // Construir mensaje
   let message = `<b>📊 TOP 3 OPORTUNIDADES</b>\n`;
-  message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n\n`;
+  message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n`;
+  message += `⚙️ Umbrales: C1=${UMBRAL_CAJA1}, C2=${UMBRAL_CAJA2}\n\n`;
 
   if (top3.length === 0) {
-    message += `⚪ No se encontraron oportunidades.`;
+    message += `⚪ No se encontraron oportunidades destacadas.`;
   } else {
     top3.forEach((item, idx) => {
       const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
@@ -375,11 +382,17 @@ exports.handler = async (event, context) => {
     });
   }
 
+  // Si hay errores, añadir depuración
+  if (errores.length > 0) {
+    message += `\n⚠️ Algunos símbolos fallaron:\n`;
+    errores.slice(0, 5).forEach(e => message += `- ${e}\n`);
+  }
+
   await sendTelegram(message);
   console.log("✅ Mensaje enviado.");
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: `Escaneo completado. ${top3.length} oportunidades.` })
+    body: JSON.stringify({ message: `Escaneo completado. ${top3.length} oportunidades, ${errores.length} errores.` })
   };
 };
