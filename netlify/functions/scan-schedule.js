@@ -4,18 +4,20 @@
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 
+// Umbrales (más bajos para ser sensible)
 const UMBRAL_CAJA1 = 2;
 const UMBRAL_CAJA2 = 4;
 
-// SOLO SÍMBOLOS VÁLIDOS (los más comunes)
+// Lista de monedas (TODAS)
 const COINS_ACTIVE = [
   "BTCUSDT", "ETHUSDT", "BNBUSDT",
-  "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", 
-  "DOGEUSDT", "PEPEUSDT", "SHIBUSDT"
+  "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", "DOTUSDT", "AVAXUSDT",
+  "DOGEUSDT", "PEPEUSDT", "ENAUSDT", "TLMUSDT", "POLUSDT", "HBARUSDT",
+  "CHZUSDT", "SHIBUSDT", "TWTUSDT"
 ];
 
 // ============================================================
-//  FUNCIONES DE INDICADORES (resumidas, igual que antes)
+//  FUNCIONES DE INDICADORES (idénticas a tu web)
 // ============================================================
 function calculateEMA(data, period) {
   if (!data || data.length < period) return null;
@@ -87,9 +89,6 @@ function calculateSMA(data, period) {
   return sum / period;
 }
 
-// ============================================================
-//  ANÁLISIS DE CAJA 1
-// ============================================================
 function analyzeBox1(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
   const rsi = calculateRSI(closes, 14);
@@ -111,20 +110,9 @@ function analyzeBox1(closes, highs, lows, volumes) {
   if (bull >= UMBRAL_CAJA1) signal = "BUY";
   else if (bear >= UMBRAL_CAJA1) signal = "SELL";
 
-  return {
-    signal,
-    votes: { bull, bear },
-    price,
-    rsi,
-    volRatio,
-    atr,
-    atrPercent: atr !== null && price > 0 ? (atr / price) * 100 : null
-  };
+  return { signal, votes: { bull, bear }, price, rsi, volRatio, atr, atrPercent: atr !== null && price > 0 ? (atr / price) * 100 : null };
 }
 
-// ============================================================
-//  ANÁLISIS DE CAJA 2
-// ============================================================
 function analyzeBox2Weighted(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
   const rsi14 = calculateRSI(closes, 14);
@@ -167,17 +155,9 @@ function analyzeBox2Weighted(closes, highs, lows, volumes) {
   else if (score <= -UMBRAL_CAJA2) signal = "SELL";
   const confidence = Math.min(100, Math.abs(score) * 10);
 
-  return {
-    signal,
-    score,
-    confidence,
-    indicValues: { ...iv, rsi14, rsi21, volRatio, vsEMA200: iv.vsEMA200 }
-  };
+  return { signal, score, confidence, indicValues: { ...iv, rsi14, rsi21, volRatio, vsEMA200: iv.vsEMA200 } };
 }
 
-// ============================================================
-//  ANÁLISIS DE CAJA 3
-// ============================================================
 function analyzeBox3(closes, highs, lows, volumes) {
   const price = closes[closes.length - 1];
   const ema50 = calculateEMA(closes, 50);
@@ -187,17 +167,7 @@ function analyzeBox3(closes, highs, lows, volumes) {
   const avgVol = calculateSMA(volumes, 50);
   const volRatio = avgVol && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
 
-  let divergence = "No detectada";
-  if (closes.length > 40 && macd && macd.line !== null) {
-    const lb = 10, lastP = closes[closes.length - 1], prevP = closes[closes.length - 1 - lb];
-    const prevMacd = calculateMACD(closes.slice(0, closes.length - lb));
-    if (prevMacd && prevMacd.line !== null) {
-      if (lastP < prevP && macd.line > prevMacd.line) divergence = "Alcista";
-      else if (lastP > prevP && macd.line < prevMacd.line) divergence = "Bajista";
-    }
-  }
-
-  let bull = 0, bear = 0, details = [], iv = {};
+  let bull = 0, bear = 0, iv = {};
   if (ema50 !== null && ema200 !== null) {
     if (ema50 > ema200) { bull++; iv.emaCross = 'alcista'; } else { bear++; iv.emaCross = 'bajista'; }
   } else { iv.emaCross = 'sin datos'; }
@@ -205,19 +175,14 @@ function analyzeBox3(closes, highs, lows, volumes) {
     if (rsiW < 40) bull++;
     else if (rsiW > 65) bear++;
   }
-  iv.divergence = divergence;
   iv.volAno = volRatio;
-  iv.halving = "Halving 2024";
 
   let signal = "HOLD";
   if (bull >= 2) signal = "BUY";
   else if (bear >= 2) signal = "SELL";
-  return { signal, votes: { bull, bear }, details, indicValues: iv, hasLongData: ema50 !== null && ema200 !== null };
+  return { signal, votes: { bull, bear }, indicValues: iv };
 }
 
-// ============================================================
-//  RIESGO
-// ============================================================
 function calculateRisk(price, atr, signal) {
   if (!atr || price === undefined) return null;
   const slMult = 1.0, tp1Mult = 1.5;
@@ -234,28 +199,45 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS (con mejor manejo de errores)
+//  OBTENER DATOS DE BINANCE (CON USER-AGENT Y REINTENTO)
 // ============================================================
-async function getKlines(symbol, interval, limit) {
+async function getKlines(symbol, interval, limit, retries = 2) {
   const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  const res = await fetch(url);
-  const data = await res.json();
-  // Si Binance devuelve un error
-  if (data.code && data.msg) {
-    throw new Error(`${symbol}: ${data.msg} (código ${data.code})`);
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; TradingBot/1.0)'
+        }
+      });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText}`);
+      }
+      
+      const data = await res.json();
+      if (!Array.isArray(data)) {
+        throw new Error(`respuesta inválida: ${JSON.stringify(data).substring(0, 100)}`);
+      }
+      if (data.length === 0) {
+        throw new Error('sin datos (array vacío)');
+      }
+      
+      return {
+        closes: data.map(c => parseFloat(c[4])),
+        highs: data.map(c => parseFloat(c[2])),
+        lows: data.map(c => parseFloat(c[3])),
+        volumes: data.map(c => parseFloat(c[5]))
+      };
+      
+    } catch (err) {
+      if (attempt === retries) throw err;
+      console.log(`⚠️ Reintentando ${symbol} (${attempt + 1}/${retries})...`);
+      await new Promise(r => setTimeout(r, 500));
+    }
   }
-  if (!Array.isArray(data)) {
-    throw new Error(`${symbol}: respuesta inválida (no es un array)`);
-  }
-  if (data.length === 0) {
-    throw new Error(`${symbol}: sin datos (array vacío)`);
-  }
-  return {
-    closes: data.map(c => parseFloat(c[4])),
-    highs: data.map(c => parseFloat(c[2])),
-    lows: data.map(c => parseFloat(c[3])),
-    volumes: data.map(c => parseFloat(c[5]))
-  };
 }
 
 // ============================================================
@@ -287,48 +269,53 @@ async function sendTelegram(message) {
 // ============================================================
 exports.handler = async (event, context) => {
   console.log("🔍 Iniciando escaneo...");
-  let allSignals = [];
-  let errores = [];
+  const allSignals = [];
+  const errors = [];
 
-  for (const symbol of COINS_ACTIVE) {
+  for (let i = 0; i < COINS_ACTIVE.length; i++) {
+    const symbol = COINS_ACTIVE[i];
     try {
-      console.log(`📊 Analizando ${symbol}...`);
+      console.log(`📊 ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
+      
+      // Pausa de 200ms entre peticiones para no saturar
+      if (i > 0) await new Promise(r => setTimeout(r, 200));
+      
       const hourly = await getKlines(symbol, '1h', 500);
       const weekly = await getKlines(symbol, '1w', 300);
-
+      
       const price = hourly.closes[hourly.closes.length - 1];
       const b1 = analyzeBox1(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
       const b2 = analyzeBox2Weighted(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
       const b3 = analyzeBox3(weekly.closes, weekly.highs, weekly.lows, weekly.volumes);
-
+      
       const ath = Math.max(...weekly.highs);
       const pctFromAth = (price - ath) / ath * 100;
-
+      
       let risk = null;
       if (b1.signal !== "HOLD" && b1.atr !== null) {
         risk = calculateRisk(price, b1.atr, b1.signal);
       }
-
-      // Score
+      
+      // Calcular score (igual que tu web)
       let score = 0;
-      let reasons = [];
-
+      const reasons = [];
+      
       if (b1.signal === 'BUY') { score += 3; reasons.push('C1 alcista (+3)'); }
       else if (b1.signal === 'SELL') { score -= 3; reasons.push('C1 bajista (-3)'); }
-
+      
       if (b2.signal === 'BUY') { score += 4; reasons.push('C2 alcista (+4)'); }
       else if (b2.signal === 'SELL') { score -= 4; reasons.push('C2 bajista (-4)'); }
-
+      
       if (b3.signal === 'BUY') { score += 2; reasons.push('C3 alcista (+2)'); }
       else if (b3.signal === 'SELL') { score -= 2; reasons.push('C3 bajista (-2)'); }
-
+      
       if (risk && risk.ratio >= 1.5) {
         score += 0.5;
         reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
       }
-
+      
       const signalDir = b1.signal !== "HOLD" ? b1.signal : (b2.signal !== "HOLD" ? b2.signal : b3.signal);
-
+      
       allSignals.push({
         symbol: symbol.replace('USDT', '/USDT'),
         price,
@@ -341,18 +328,20 @@ exports.handler = async (event, context) => {
         pctFromAth,
         signalDir
       });
-
+      
       console.log(`✅ ${symbol} -> Score: ${score.toFixed(1)}, Señal: ${signalDir}`);
-
+      
     } catch (err) {
-      console.warn(`❌ Error con ${symbol}: ${err.message}`);
-      errores.push(`${symbol}: ${err.message}`);
+      console.error(`❌ ${symbol}: ${err.message}`);
+      errors.push(`${symbol}: ${err.message}`);
     }
   }
 
-  // Ordenar y top 3
+  // Ordenar y tomar top 3
   allSignals.sort((a, b) => b.score - a.score);
   const top3 = allSignals.slice(0, 3);
+
+  console.log(`📈 Top 3: ${top3.map(s => s.symbol).join(', ')}`);
 
   // Construir mensaje
   let message = `<b>📊 TOP 3 OPORTUNIDADES</b>\n`;
@@ -382,10 +371,11 @@ exports.handler = async (event, context) => {
     });
   }
 
-  // Si hay errores, añadir depuración
-  if (errores.length > 0) {
+  // Si hubo errores, añadir al final
+  if (errors.length > 0) {
     message += `\n⚠️ Algunos símbolos fallaron:\n`;
-    errores.slice(0, 5).forEach(e => message += `- ${e}\n`);
+    errors.slice(0, 5).forEach(e => message += `- ${e}\n`);
+    if (errors.length > 5) message += `- ... y ${errors.length - 5} más.\n`;
   }
 
   await sendTelegram(message);
@@ -393,6 +383,8 @@ exports.handler = async (event, context) => {
 
   return {
     statusCode: 200,
-    body: JSON.stringify({ message: `Escaneo completado. ${top3.length} oportunidades, ${errores.length} errores.` })
+    body: JSON.stringify({ 
+      message: `Escaneo completado. ${top3.length} oportunidades, ${errors.length} errores.` 
+    })
   };
 };
