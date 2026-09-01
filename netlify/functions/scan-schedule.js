@@ -8,7 +8,7 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const UMBRAL_CAJA1 = 2;
 const UMBRAL_CAJA2 = 4;
 
-// Lista de monedas (TODAS)
+// Lista de monedas
 const COINS_ACTIVE = [
   "BTCUSDT", "ETHUSDT", "BNBUSDT",
   "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", "DOTUSDT", "AVAXUSDT",
@@ -199,27 +199,48 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS DE BINANCE (CON USER-AGENT Y REINTENTO)
+//  OBTENER DATOS DE BINANCE (MULTI-ENDPOINT)
 // ============================================================
 async function getKlines(symbol, interval, limit, retries = 2) {
-  const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  // Lista de endpoints para intentar (algunos pueden estar menos restringidos)
+  const endpoints = [
+    'https://api1.binance.com',
+    'https://api2.binance.com',
+    'https://api3.binance.com',
+    'https://api.binance.com'
+  ];
   
-  for (let attempt = 0; attempt <= retries; attempt++) {
+  let lastError = null;
+  
+  for (let attempt = 0; attempt < endpoints.length; attempt++) {
+    const baseUrl = endpoints[attempt];
+    const url = `${baseUrl}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+    
     try {
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; TradingBot/1.0)'
-        }
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br'
+        },
+        // Timeout de 5 segundos
+        signal: AbortSignal.timeout(5000)
       });
+      
+      if (res.status === 451) {
+        // Error de restricción geográfica - probamos el siguiente endpoint
+        console.log(`📍 ${symbol}: Endpoint ${baseUrl} bloqueado (451), probando siguiente...`);
+        continue;
+      }
       
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText}`);
+        throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 100)}`);
       }
       
       const data = await res.json();
       if (!Array.isArray(data)) {
-        throw new Error(`respuesta inválida: ${JSON.stringify(data).substring(0, 100)}`);
+        throw new Error(`respuesta inválida: ${JSON.stringify(data).substring(0, 80)}`);
       }
       if (data.length === 0) {
         throw new Error('sin datos (array vacío)');
@@ -233,11 +254,15 @@ async function getKlines(symbol, interval, limit, retries = 2) {
       };
       
     } catch (err) {
-      if (attempt === retries) throw err;
-      console.log(`⚠️ Reintentando ${symbol} (${attempt + 1}/${retries})...`);
-      await new Promise(r => setTimeout(r, 500));
+      lastError = err;
+      console.log(`⚠️ ${symbol} con ${baseUrl}: ${err.message}`);
+      // Esperamos antes de probar el siguiente
+      await new Promise(r => setTimeout(r, 300));
     }
   }
+  
+  // Si todos los endpoints fallaron, lanzamos el último error
+  throw lastError || new Error(`Todos los endpoints fallaron para ${symbol}`);
 }
 
 // ============================================================
@@ -268,7 +293,7 @@ async function sendTelegram(message) {
 //  FUNCIÓN PRINCIPAL
 // ============================================================
 exports.handler = async (event, context) => {
-  console.log("🔍 Iniciando escaneo...");
+  console.log("🔍 Iniciando escaneo con multi-endpoint...");
   const allSignals = [];
   const errors = [];
 
@@ -277,8 +302,8 @@ exports.handler = async (event, context) => {
     try {
       console.log(`📊 ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
       
-      // Pausa de 200ms entre peticiones para no saturar
-      if (i > 0) await new Promise(r => setTimeout(r, 200));
+      // Pausa entre peticiones
+      if (i > 0) await new Promise(r => setTimeout(r, 250));
       
       const hourly = await getKlines(symbol, '1h', 500);
       const weekly = await getKlines(symbol, '1w', 300);
