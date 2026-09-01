@@ -281,12 +281,12 @@ async function sendTelegram(message) {
 }
 
 // ============================================================
-//  FUNCIÓN PRINCIPAL
+//  FUNCIÓN PRINCIPAL (se ejecuta según el cron)
 // ============================================================
 exports.handler = async (event, context) => {
   console.log("🔍 Iniciando escaneo automático de oportunidades...");
   let allSignals = [];
-  let megaAlerts = []; // para avisos especiales de MEGA (incluyendo Caja3)
+  let megaAlerts = [];
 
   for (const symbol of COINS_ACTIVE) {
     try {
@@ -303,7 +303,7 @@ exports.handler = async (event, context) => {
       const pctFromAth = (price - ath) / ath * 100;
       const isAthGood = pctFromAth < -30;
 
-      // Calcular riesgo si hay señal en Caja1
+      // Riesgo
       let risk = null;
       if (b1.signal !== "HOLD" && b1.atr !== null) {
         risk = calculateRisk(price, b1.atr, b1.signal);
@@ -326,7 +326,7 @@ exports.handler = async (event, context) => {
         megaType1 = "🔴 MEGA VENTA (C1)";
       }
 
-      // Detectar MEGA de Caja3 (contexto semanal)
+      // Detectar MEGA de Caja3
       let isMega3 = false;
       let megaType3 = "";
       if (b3.signal === 'BUY' && b3.votes.bull >= 2) {
@@ -337,15 +337,15 @@ exports.handler = async (event, context) => {
         megaType3 = "🔴 MEGA CONTEXTO (C3) - BAJISTA";
       }
 
-      // Puntuación combinada (Caja1 + Caja2 + Caja3)
+      // Puntuación combinada
       let score = 0;
       if (b1.signal === 'BUY') score += 3;
       else if (b1.signal === 'SELL') score -= 3;
-      score += b2.score * 0.5; // ponderación
+      score += b2.score * 0.5;
       if (b3.signal === 'BUY') score += 2;
       else if (b3.signal === 'SELL') score -= 2;
 
-      // Almacenar oportunidad si hay señal (BUY/SELL) o si es MEGA (para mostrarla aunque sea HOLD)
+      // Guardar señal si tiene alguna dirección (BUY/SELL) o es MEGA
       if (b1.signal !== "HOLD" || b2.signal !== "HOLD" || b3.signal !== "HOLD" || isMega1 || isMega3) {
         allSignals.push({
           symbol: symbol.replace('USDT', '/USDT'),
@@ -401,9 +401,16 @@ exports.handler = async (event, context) => {
   } else {
     top3.forEach((item, idx) => {
       const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-      const signalDir = item.b1.signal !== "HOLD" ? item.b1.signal : (item.b2.signal !== "HOLD" ? item.b2.signal : item.b3.signal);
+      // Determinamos la dirección principal (priorizamos Caja1, luego Caja2, luego Caja3)
+      let signalDir = item.b1.signal !== "HOLD" ? item.b1.signal : 
+                     (item.b2.signal !== "HOLD" ? item.b2.signal : item.b3.signal);
       const color = signalDir === 'BUY' ? '🟢' : signalDir === 'SELL' ? '🔴' : '⚪';
-      const megaTag = item.isMega1 || item.isMega3 ? '🔥 MEGA ' : '';
+      
+      // Marcar si es MEGA
+      let megaTag = "";
+      if (item.isMega1 || item.isMega3) {
+        megaTag = "🔥 MEGA ";
+      }
       message += `${emoji} <b>${item.symbol}</b> ${color} ${signalDir}  |  Score: ${item.score.toFixed(1)}\n`;
       message += `   💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}\n`;
       if (item.risk) {
@@ -416,7 +423,7 @@ exports.handler = async (event, context) => {
     });
   }
 
-  // Enviar mensaje principal
+  // Enviar mensaje principal (SIEMPRE, aunque no haya señales)
   await sendTelegram(message);
 
   // Si hay alertas MEGA (C1 o C3), enviar mensajes adicionales (uno por cada MEGA)
