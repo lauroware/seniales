@@ -220,10 +220,9 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS - USANDO COINGECKO (NO BLOQUEA)
+//  OBTENER DATOS - SOLO COINGECKO (NO BLOQUEA)
 // ============================================================
 async function getKlines(symbol, interval, limit) {
-  // Mapeo de símbolos de Binance a CoinGecko
   const symbolMap = {
     'BTCUSDT': 'bitcoin',
     'ETHUSDT': 'ethereum',
@@ -251,51 +250,40 @@ async function getKlines(symbol, interval, limit) {
     throw new Error(`No hay mapeo para ${symbol}`);
   }
 
-  // CoinGecko: 30 días de datos (más de 500 velas)
+  // CoinGecko: 30 días de datos diarios
   const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30`;
   
   console.log(`🔄 ${symbol} desde CoinGecko...`);
   
-  try {
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-        'Accept': 'application/json'
-      }
-    });
-
-    if (!res.ok) {
-      throw new Error(`HTTP ${res.status}`);
+  const res = await fetch(url, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0',
+      'Accept': 'application/json'
     }
+  });
 
-    const data = await res.json();
-    if (!data.prices || data.prices.length === 0) {
-      throw new Error('Sin datos de precios');
-    }
-
-    // Extraer precios
-    const prices = data.prices.map(p => p[1]);
-    
-    // Para highs/lows usamos el precio como aproximación (con un margen del 2%)
-    // Esto es una limitación de CoinGecko vs Binance
-    const highs = prices.map(p => p * 1.02);
-    const lows = prices.map(p => p * 0.98);
-    
-    // Volumen no disponible en esta API de CoinGecko
-    const volumes = prices.map(() => 0);
-
-    console.log(`✅ ${symbol} obtenido desde CoinGecko (${prices.length} velas)`);
-    
-    return {
-      closes: prices,
-      highs: highs,
-      lows: lows,
-      volumes: volumes
-    };
-  } catch (err) {
-    console.log(`⚠️ CoinGecko falló para ${symbol}: ${err.message}`);
-    throw err;
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
   }
+
+  const data = await res.json();
+  if (!data.prices || data.prices.length === 0) {
+    throw new Error('Sin datos de precios');
+  }
+
+  const prices = data.prices.map(p => p[1]);
+  const highs = prices.map(p => p * 1.02);
+  const lows = prices.map(p => p * 0.98);
+  const volumes = prices.map(() => 0);
+
+  console.log(`✅ ${symbol} obtenido (${prices.length} velas)`);
+  
+  return {
+    closes: prices,
+    highs: highs,
+    lows: lows,
+    volumes: volumes
+  };
 }
 
 // ============================================================
@@ -350,12 +338,9 @@ async function main() {
       console.log(`📊 ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
       if (i > 0) await new Promise(r => setTimeout(r, 500));
 
-      // Usamos CoinGecko para ambos timeframes
-      // Nota: CoinGecko no diferencia entre 1h y 1w, solo da datos diarios
-      // Así que usamos los mismos datos para ambos (con diferentes límites)
       const dailyData = await getKlines(symbol, '1h', 500);
       
-      // Para "semanal" usamos los mismos datos pero con menos puntos (cada 7 días)
+      // Datos semanales (cada 7 días)
       const weeklyCloses = [];
       const weeklyHighs = [];
       const weeklyLows = [];
