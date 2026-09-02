@@ -1,22 +1,24 @@
-name: Prueba de Telegram
+name: Escaneo automático de señales
 
 on:
+  schedule:
+   - cron: '*/30 * * * *'  # cada 30 minutos
   workflow_dispatch:
 
 jobs:
-  test:
+  scan:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout código
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
       - name: Configurar Node.js
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Probar Telegram
-        run: node test-telegram.js   # O node netlify/test-telegram.js si está dentro de netlify/
+      - name: Ejecutar escáner
+        run: node scan.js   # <--- CAMBIADO AQUÍ
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
