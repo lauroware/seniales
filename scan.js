@@ -29,15 +29,13 @@ function calculateEMA(data, period) {
 
 function calculateRSI(data, period) {
   if (!data || data.length < period + 1) return null;
-  let gains = 0,
-    losses = 0;
+  let gains = 0, losses = 0;
   for (let i = 1; i <= period; i++) {
     const d = data[i] - data[i - 1];
     if (d > 0) gains += d;
     else losses += Math.abs(d);
   }
-  let avgGain = gains / period,
-    avgLoss = losses / period;
+  let avgGain = gains / period, avgLoss = losses / period;
   for (let i = period + 1; i < data.length; i++) {
     const d = data[i] - data[i - 1];
     if (d > 0) {
@@ -68,8 +66,7 @@ function calculateMACD(data) {
     }
     return out;
   };
-  const e12 = ema(data, 12),
-    e26 = ema(data, 26);
+  const e12 = ema(data, 12), e26 = ema(data, 26);
   const macdArr = [];
   for (let i = 0; i < data.length; i++) {
     if (e12[i] !== null && e26[i] !== null) macdArr.push(e12[i] - e26[i]);
@@ -111,16 +108,11 @@ function analyzeBox1(closes, highs, lows, volumes) {
   const volRatio = avgVol && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
   const atr = calculateATR(closes, highs, lows, 14);
 
-  let bull = 0,
-    bear = 0;
-  if (rsi !== null) { if (rsi >= 50) bull++;
-    else bear++; }
-  if (macd && macd.signal !== null) { if (macd.line > macd.signal) bull++;
-    else bear++; }
-  if (ema12 !== null && ema26 !== null) { if (ema12 > ema26) bull++;
-    else bear++; }
-  if (ema50 !== null) { if (price > ema50) bull++;
-    else bear++; }
+  let bull = 0, bear = 0;
+  if (rsi !== null) { if (rsi >= 50) bull++; else bear++; }
+  if (macd && macd.signal !== null) { if (macd.line > macd.signal) bull++; else bear++; }
+  if (ema12 !== null && ema26 !== null) { if (ema12 > ema26) bull++; else bear++; }
+  if (ema50 !== null) { if (price > ema50) bull++; else bear++; }
 
   let signal = "HOLD";
   if (bull >= UMBRAL_CAJA1) signal = "BUY";
@@ -152,24 +144,16 @@ function analyzeBox2Weighted(closes, highs, lows, volumes) {
   let score = 0;
   const iv = {};
   if (ema50 !== null && ema200 !== null) {
-    if (ema50 > ema200) { score += 3;
-      iv.ema50_200 = 'alcista'; } else { score -= 3;
-      iv.ema50_200 = 'bajista'; }
+    if (ema50 > ema200) { score += 3; iv.ema50_200 = 'alcista'; } else { score -= 3; iv.ema50_200 = 'bajista'; }
   }
   if (macd && macd.signal !== null) {
-    if (macd.line > macd.signal) { score += 2;
-      iv.macd = 'alcista'; } else { score -= 2;
-      iv.macd = 'bajista'; }
+    if (macd.line > macd.signal) { score += 2; iv.macd = 'alcista'; } else { score -= 2; iv.macd = 'bajista'; }
   }
   if (ema12 !== null && ema26 !== null) {
-    if (ema12 > ema26) { score += 2;
-      iv.ema12_26 = 'alcista'; } else { score -= 2;
-      iv.ema12_26 = 'bajista'; }
+    if (ema12 > ema26) { score += 2; iv.ema12_26 = 'alcista'; } else { score -= 2; iv.ema12_26 = 'bajista'; }
   }
   if (ema200 !== null) {
-    if (price > ema200) { score += 3;
-      iv.vsEMA200 = 'alcista'; } else { score -= 3;
-      iv.vsEMA200 = 'bajista'; }
+    if (price > ema200) { score += 3; iv.vsEMA200 = 'alcista'; } else { score -= 3; iv.vsEMA200 = 'bajista'; }
   }
   if (rsi14 !== null) {
     if (rsi14 < 35) score += 1;
@@ -204,13 +188,9 @@ function analyzeBox3(closes, highs, lows, volumes) {
   const avgVol = calculateSMA(volumes, 50);
   const volRatio = avgVol && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
 
-  let bull = 0,
-    bear = 0,
-    iv = {};
+  let bull = 0, bear = 0, iv = {};
   if (ema50 !== null && ema200 !== null) {
-    if (ema50 > ema200) { bull++;
-      iv.emaCross = 'alcista'; } else { bear++;
-      iv.emaCross = 'bajista'; }
+    if (ema50 > ema200) { bull++; iv.emaCross = 'alcista'; } else { bear++; iv.emaCross = 'bajista'; }
   } else { iv.emaCross = 'sin datos'; }
   if (rsiW !== null) {
     if (rsiW < 40) bull++;
@@ -226,8 +206,7 @@ function analyzeBox3(closes, highs, lows, volumes) {
 
 function calculateRisk(price, atr, signal) {
   if (!atr || price === undefined) return null;
-  const slMult = 1.0,
-    tp1Mult = 1.5;
+  const slMult = 1.0, tp1Mult = 1.5;
   if (signal === "BUY") {
     const stop = price - atr * slMult;
     const tp1 = price + atr * tp1Mult;
@@ -241,83 +220,10 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS (PROXY + COINGECKO COMO RESPALDO)
+//  OBTENER DATOS - USANDO COINGECKO (NO BLOQUEA)
 // ============================================================
 async function getKlines(symbol, interval, limit) {
-  const binanceUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-
-  // ====== INTENTO 1: PROXIES ======
-  const proxies = [
-    {
-      name: 'corsproxy.io',
-      buildUrl: () => `https://corsproxy.io/?${encodeURIComponent(binanceUrl)}`
-    },
-    {
-      name: 'allorigins.win',
-      buildUrl: () => `https://api.allorigins.win/raw?url=${encodeURIComponent(binanceUrl)}`
-    },
-    {
-      name: 'thingproxy',
-      buildUrl: () => `https://thingproxy.freeboard.io/fetch/${binanceUrl}`
-    },
-    {
-      name: 'cors-anywhere',
-      buildUrl: () => `https://cors-anywhere.herokuapp.com/${binanceUrl}`
-    }
-  ];
-
-  let lastError = null;
-
-  for (let attempt = 0; attempt < 3; attempt++) {
-    for (const proxy of proxies) {
-      try {
-        const url = proxy.buildUrl();
-        console.log(`🔄 ${symbol} con ${proxy.name} (intento ${attempt+1})...`);
-        
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        
-        const res = await fetch(url, {
-          signal: controller.signal,
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-          }
-        });
-        
-        clearTimeout(timeoutId);
-
-        if (res.status === 451) {
-          throw new Error('Bloqueado por geolocalización');
-        }
-
-        if (!res.ok) {
-          throw new Error(`HTTP ${res.status}`);
-        }
-
-        const data = await res.json();
-        if (!Array.isArray(data) || data.length === 0) {
-          throw new Error('Datos vacíos');
-        }
-
-        console.log(`✅ ${symbol} obtenido con ${proxy.name}`);
-        return {
-          closes: data.map(c => parseFloat(c[4])),
-          highs: data.map(c => parseFloat(c[2])),
-          lows: data.map(c => parseFloat(c[3])),
-          volumes: data.map(c => parseFloat(c[5]))
-        };
-      } catch (err) {
-        lastError = err;
-        console.log(`⚠️ ${proxy.name} falló: ${err.message}`);
-        await new Promise(r => setTimeout(r, 500));
-      }
-    }
-    if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
-  }
-
-  // ====== INTENTO 2: COINGECKO (RESPALDO) ======
-  console.log(`🔄 ${symbol} usando CoinGecko como respaldo...`);
-  
+  // Mapeo de símbolos de Binance a CoinGecko
   const symbolMap = {
     'BTCUSDT': 'bitcoin',
     'ETHUSDT': 'ethereum',
@@ -341,54 +247,55 @@ async function getKlines(symbol, interval, limit) {
   };
 
   const coinId = symbolMap[symbol];
-  if (coinId) {
-    try {
-      const geckoUrl = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30`;
-      const res = await fetch(geckoUrl, {
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-      });
-      
-      if (res.ok) {
-        const data = await res.json();
-        if (data.prices && data.prices.length > 0) {
-          const prices = data.prices.map(p => p[1]);
-          console.log(`✅ ${symbol} obtenido desde CoinGecko (${prices.length} velas)`);
-          return {
-            closes: prices,
-            highs: prices.map(p => p * 1.01),
-            lows: prices.map(p => p * 0.99),
-            volumes: prices.map(() => 0)
-          };
-        }
-      }
-    } catch (err) {
-      console.log(`⚠️ CoinGecko falló: ${err.message}`);
-    }
+  if (!coinId) {
+    throw new Error(`No hay mapeo para ${symbol}`);
   }
 
-  // ====== INTENTO 3: DIRECTO ======
+  // CoinGecko: 30 días de datos (más de 500 velas)
+  const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30`;
+  
+  console.log(`🔄 ${symbol} desde CoinGecko...`);
+  
   try {
-    console.log(`🔄 ${symbol} intento directo...`);
-    const res = await fetch(binanceUrl, {
-      headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
-    if (res.ok) {
-      const data = await res.json();
-      if (Array.isArray(data) && data.length > 0) {
-        console.log(`✅ ${symbol} obtenido directamente`);
-        return {
-          closes: data.map(c => parseFloat(c[4])),
-          highs: data.map(c => parseFloat(c[2])),
-          lows: data.map(c => parseFloat(c[3])),
-          volumes: data.map(c => parseFloat(c[5]))
-        };
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': 'application/json'
       }
-    }
-  } catch (err) {
-    console.log(`⚠️ Directo falló: ${err.message}`);
-  }
+    });
 
-  throw lastError || new Error(`No se pudo obtener ${symbol}`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    if (!data.prices || data.prices.length === 0) {
+      throw new Error('Sin datos de precios');
+    }
+
+    // Extraer precios
+    const prices = data.prices.map(p => p[1]);
+    
+    // Para highs/lows usamos el precio como aproximación (con un margen del 2%)
+    // Esto es una limitación de CoinGecko vs Binance
+    const highs = prices.map(p => p * 1.02);
+    const lows = prices.map(p => p * 0.98);
+    
+    // Volumen no disponible en esta API de CoinGecko
+    const volumes = prices.map(() => 0);
+
+    console.log(`✅ ${symbol} obtenido desde CoinGecko (${prices.length} velas)`);
+    
+    return {
+      closes: prices,
+      highs: highs,
+      lows: lows,
+      volumes: volumes
+    };
+  } catch (err) {
+    console.log(`⚠️ CoinGecko falló para ${symbol}: ${err.message}`);
+    throw err;
+  }
 }
 
 // ============================================================
@@ -443,15 +350,37 @@ async function main() {
       console.log(`📊 ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
       if (i > 0) await new Promise(r => setTimeout(r, 500));
 
-      const hourly = await getKlines(symbol, '1h', 500);
-      const weekly = await getKlines(symbol, '1w', 300);
+      // Usamos CoinGecko para ambos timeframes
+      // Nota: CoinGecko no diferencia entre 1h y 1w, solo da datos diarios
+      // Así que usamos los mismos datos para ambos (con diferentes límites)
+      const dailyData = await getKlines(symbol, '1h', 500);
+      
+      // Para "semanal" usamos los mismos datos pero con menos puntos (cada 7 días)
+      const weeklyCloses = [];
+      const weeklyHighs = [];
+      const weeklyLows = [];
+      const weeklyVolumes = [];
+      
+      for (let j = 0; j < dailyData.closes.length; j += 7) {
+        if (j < dailyData.closes.length) {
+          const sliceEnd = Math.min(j + 7, dailyData.closes.length);
+          const sliceCloses = dailyData.closes.slice(j, sliceEnd);
+          const sliceHighs = dailyData.highs.slice(j, sliceEnd);
+          const sliceLows = dailyData.lows.slice(j, sliceEnd);
+          
+          weeklyCloses.push(sliceCloses[sliceCloses.length - 1]);
+          weeklyHighs.push(Math.max(...sliceHighs));
+          weeklyLows.push(Math.min(...sliceLows));
+          weeklyVolumes.push(0);
+        }
+      }
 
-      const price = hourly.closes[hourly.closes.length - 1];
-      const b1 = analyzeBox1(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
-      const b2 = analyzeBox2Weighted(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
-      const b3 = analyzeBox3(weekly.closes, weekly.highs, weekly.lows, weekly.volumes);
+      const price = dailyData.closes[dailyData.closes.length - 1];
+      const b1 = analyzeBox1(dailyData.closes, dailyData.highs, dailyData.lows, dailyData.volumes);
+      const b2 = analyzeBox2Weighted(dailyData.closes, dailyData.highs, dailyData.lows, dailyData.volumes);
+      const b3 = analyzeBox3(weeklyCloses, weeklyHighs, weeklyLows, weeklyVolumes);
 
-      const ath = Math.max(...weekly.highs);
+      const ath = Math.max(...weeklyHighs);
       const pctFromAth = (price - ath) / ath * 100;
 
       let risk = null;
@@ -461,19 +390,20 @@ async function main() {
 
       let score = 0;
       const reasons = [];
-      if (b1.signal === 'BUY') { score += 3;
-        reasons.push('C1 alcista (+3)'); } else if (b1.signal === 'SELL') { score -= 3;
-        reasons.push('C1 bajista (-3)'); }
-      if (b2.signal === 'BUY') { score += 4;
-        reasons.push('C2 alcista (+4)'); } else if (b2.signal === 'SELL') { score -= 4;
-        reasons.push('C2 bajista (-4)'); }
-      if (b3.signal === 'BUY') { score += 2;
-        reasons.push('C3 alcista (+2)'); } else if (b3.signal === 'SELL') { score -= 2;
-        reasons.push('C3 bajista (-2)'); }
+      if (b1.signal === 'BUY') { score += 3; reasons.push('C1 alcista (+3)'); } 
+      else if (b1.signal === 'SELL') { score -= 3; reasons.push('C1 bajista (-3)'); }
+      
+      if (b2.signal === 'BUY') { score += 4; reasons.push('C2 alcista (+4)'); } 
+      else if (b2.signal === 'SELL') { score -= 4; reasons.push('C2 bajista (-4)'); }
+      
+      if (b3.signal === 'BUY') { score += 2; reasons.push('C3 alcista (+2)'); } 
+      else if (b3.signal === 'SELL') { score -= 2; reasons.push('C3 bajista (-2)'); }
+      
       if (risk && risk.ratio >= 1.5) {
         score += 0.5;
         reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
       }
+      
       const signalDir = b1.signal !== "HOLD" ? b1.signal : (b2.signal !== "HOLD" ? b2.signal : b3.signal);
 
       allSignals.push({
