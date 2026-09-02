@@ -2,9 +2,8 @@ name: Escaneo automático de señales
 
 on:
   schedule:
-    # Ejecutar cada hora (puedes cambiarlo)
     - cron: '0 * * * *'
-  workflow_dispatch:   # Permite ejecutarlo manualmente desde la pestaña Actions
+  workflow_dispatch:
 
 jobs:
   scan:
@@ -19,7 +18,7 @@ jobs:
           node-version: '20'
 
       - name: Ejecutar escáner
-        run: node scan.js
+        run: node netlify/scan.js   # <--- CAMBIADO AQUÍ
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
