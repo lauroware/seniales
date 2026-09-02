@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Señales de Trading Pro</title>
     <style>
-        /* ======== ESTILOS (idénticos a los tuyos, solo añado uno nuevo) ======== */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             background: #0d1117;
@@ -119,26 +118,9 @@
         .bt-caveat { font-size: 0.58rem; color: #6e7681; margin-top: 10px; line-height: 1.5; border-top: 1px solid #21262d; padding-top: 8px; }
         .bt-caveat strong { color: #8b949e; }
         
+        /* Estilos para MEGA */
         .box.mega-buy { border-color: #f0883e !important; box-shadow: 0 0 25px #f0883e33; }
         .box.mega-sell { border-color: #ff0040 !important; box-shadow: 0 0 25px #ff004033; }
-
-        /* NUEVO: botón para enviar a Telegram */
-        .telegram-send-btn {
-            background: #0088cc;
-            color: white;
-            border: none;
-            padding: 10px 20px;
-            border-radius: 40px;
-            font-weight: 700;
-            font-size: 0.9rem;
-            cursor: pointer;
-            width: 100%;
-            margin-top: 12px;
-            transition: background 0.2s;
-            display: none; /* oculto por defecto */
-        }
-        .telegram-send-btn:hover { background: #00a3ff; }
-        .telegram-send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
         @media (max-width: 550px) {
             .bt-grid { grid-template-columns: repeat(2, 1fr); }
@@ -150,7 +132,6 @@
 </head>
 <body>
     <div class="container">
-        <!-- ===== CARD PRINCIPAL (igual que antes) ===== -->
         <div class="card">
             <div class="header">
                 <span class="symbol" id="pairDisplay">BTC/USDT</span>
@@ -229,7 +210,6 @@
                 <button class="config-reset" id="cfgReset">↺ Restablecer valores por defecto</button>
             </div>
 
-            <!-- ===== CAJAS 1, 2, 3 (iguales) ===== -->
             <div class="box" id="box1" style="border-color: #58a6ff;">
                 <div class="box-title">
                     <span>📊 Caja 1 - Corto Plazo (Operativa)</span>
@@ -250,6 +230,7 @@
                 </div>
                 <div class="explanation-box" id="expl1"><span style="color:#484f58;">Esperando señal...</span></div>
                 <div id="riskContainer"></div>
+                <!-- Quick Actions -->
                 <div id="quickActions" style="display:none; margin-top:8px;"></div>
             </div>
 
@@ -292,7 +273,6 @@
             <div class="disclaimer">⚠️ Herramienta de análisis técnico. NO es asesoramiento financiero ni una predicción. Los indicadores describen lo que ya pasó, no lo que va a pasar. Operá con tu propio criterio y gestión de riesgo.</div>
         </div>
 
-        <!-- ===== ESCÁNER ===== -->
         <div class="card scanner-section">
             <button class="scan-btn" id="scanBtn" onclick="scanMarket()">🔍 Escanear Mercado (Buscar Señales)</button>
             <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; margin-top:8px;">
@@ -306,11 +286,8 @@
                 <div class="scan-empty">Pulsá el botón para analizar todas las monedas.</div>
                 <div class="scan-meta"><span>⏳ Último escaneo: --</span><span>📡 0 monedas analizadas</span></div>
             </div>
-            <!-- NUEVO BOTÓN PARA ENVIAR A TELEGRAM -->
-            <button class="telegram-send-btn" id="telegramSendBtn" onclick="sendToTelegram()">📤 Enviar resultados a Telegram</button>
         </div>
 
-        <!-- ===== BACKTEST ===== -->
         <div class="card scanner-section">
             <button class="scan-btn" id="btBtn" onclick="runBacktestUI()" style="background:#8957e5;">🧪 Backtestear esta configuración</button>
             <div style="font-size:0.6rem;color:#8b949e;text-align:center;margin-top:8px;line-height:1.4;">Simula la lógica de la <strong>Caja 1</strong> (con el umbral y multiplicadores ATR que tengas puestos en ⚙️) sobre el historial de la moneda y estrategia seleccionadas arriba. Cambiá la config, volvé a correrlo y compará.</div>
@@ -320,7 +297,6 @@
         </div>
     </div>
 
-    <!-- ===== MODAL ===== -->
     <div class="modal-overlay" id="modalOverlay">
         <div class="modal-content">
             <button class="modal-close" id="modalCloseBtn">✕</button>
@@ -332,16 +308,13 @@
 
     <script>
         // =========================================================
-        //  CONFIGURACIÓN
+        //  CONFIGURACIÓN EN VIVO
         // =========================================================
         const DEFAULTS = { box1Threshold: 3, box2Threshold: 5, slMult: 1.0, tp1Mult: 1.5, tp2Mult: 3.0 };
         const CONFIG = { ...DEFAULTS };
 
-        // Variable global para guardar los resultados del último escaneo
-        let lastScanResults = null;
-
         // =========================================================
-        //  DICCIONARIO DE INDICADORES (IDÉNTICO)
+        //  DICCIONARIO DE INDICADORES
         // =========================================================
         const D = {
             rsi: `<p><strong>¿Qué mide?</strong> La velocidad y magnitud de los movimientos de precio (momentum). Indica zonas de sobrecompra/sobreventa.</p><div class="calc">RSI = 100 - (100 / (1 + RS)); RS = prom. ganancias / prom. pérdidas.</div><div class="example">🟢 &lt; 30 → sobreventa.</div><div class="example bearish">🔴 &gt; 70 → sobrecompra.</div><div class="example neutral">⚪ Entre 30 y 70 → neutral. En el panel operativo uso 50 como pivote de momentum.</div><p><strong>💡</strong> En tendencias fuertes puede quedar en zona extrema mucho tiempo.</p>`,
@@ -380,7 +353,7 @@
         };
 
         // =========================================================
-        //  MODAL (IDÉNTICO)
+        //  MODAL
         // =========================================================
         function showIndicatorInfo(key) {
             const info = indicatorDescriptions[key];
@@ -398,13 +371,14 @@
             document.querySelectorAll('.ind-item[data-indicator]').forEach(el => {
                 el.addEventListener('click', function() { showIndicatorInfo(this.getAttribute('data-indicator')); });
             });
+            // Pedir permiso para notificaciones
             if ('Notification' in window && Notification.permission === 'default') {
                 Notification.requestPermission();
             }
         });
 
         // =========================================================
-        //  SONIDO Y NOTIFICACIONES (IDÉNTICO)
+        //  FUNCIONES DE NOTIFICACIÓN Y SONIDO
         // =========================================================
         function playSound() {
             try {
@@ -439,25 +413,278 @@
         }
 
         // =========================================================
-        //  INDICADORES (TODAS LAS FUNCIONES MATEMÁTICAS) - IDÉNTICAS
+        //  INDICADORES (Todas las funciones matemáticas)
         // =========================================================
-        // (Aquí van todas las funciones: calculateEMA, emaSeries, calculateSMA, calculateRSI, calculateMACD, calculateBollinger, calculateStochastic, calculateATR, rsiSeries, atrSeries, macdSeries)
-        // Para no repetir 600 líneas, asumimos que están igual que en tu código original. Yo las incluyo en el archivo final.
+        function calculateEMA(data, period) {
+            if (!data || data.length < period) return null;
+            const k = 2 / (period + 1);
+            let sum = 0; for (let i = 0; i < period; i++) sum += data[i];
+            let ema = sum / period;
+            for (let i = period; i < data.length; i++) ema = data[i] * k + ema * (1 - k);
+            return ema;
+        }
+        function emaSeries(data, period) {
+            const out = new Array(data.length).fill(null);
+            if (data.length < period) return out;
+            const k = 2 / (period + 1);
+            let sum = 0; for (let i = 0; i < period; i++) sum += data[i];
+            let ema = sum / period; out[period - 1] = ema;
+            for (let i = period; i < data.length; i++) { ema = data[i] * k + ema * (1 - k); out[i] = ema; }
+            return out;
+        }
+        function calculateSMA(data, period) {
+            if (!data || data.length < period) return null;
+            let sum = 0; for (let i = data.length - period; i < data.length; i++) sum += data[i];
+            return sum / period;
+        }
+        function calculateRSI(data, period) {
+            if (!data || data.length < period + 1) return null;
+            let gains = 0, losses = 0;
+            for (let i = 1; i <= period; i++) { const d = data[i] - data[i - 1]; if (d > 0) gains += d; else losses += Math.abs(d); }
+            let avgGain = gains / period, avgLoss = losses / period;
+            for (let i = period + 1; i < data.length; i++) {
+                const d = data[i] - data[i - 1];
+                if (d > 0) { avgGain = (avgGain * (period - 1) + d) / period; avgLoss = (avgLoss * (period - 1)) / period; }
+                else { avgGain = (avgGain * (period - 1)) / period; avgLoss = (avgLoss * (period - 1) + Math.abs(d)) / period; }
+            }
+            if (avgLoss === 0) return 100;
+            return 100 - (100 / (1 + (avgGain / avgLoss)));
+        }
+        function calculateMACD(data) {
+            if (!data || data.length < 35) return null;
+            const e12 = emaSeries(data, 12), e26 = emaSeries(data, 26);
+            const macdArr = [];
+            for (let i = 0; i < data.length; i++) { if (e12[i] === null || e26[i] === null) continue; macdArr.push(e12[i] - e26[i]); }
+            if (macdArr.length === 0) return null;
+            const line = macdArr[macdArr.length - 1];
+            if (macdArr.length < 9) return { line, signal: null };
+            const sigArr = emaSeries(macdArr, 9);
+            return { line, signal: sigArr[sigArr.length - 1] };
+        }
+        function calculateBollinger(data, period = 20, mult = 2) {
+            if (!data || data.length < period) return null;
+            const sma = calculateSMA(data, period);
+            let sumSq = 0; for (let i = data.length - period; i < data.length; i++) sumSq += Math.pow(data[i] - sma, 2);
+            const sd = Math.sqrt(sumSq / period);
+            return { upper: sma + sd * mult, middle: sma, lower: sma - sd * mult };
+        }
+        function calculateStochastic(closes, highs, lows, kP = 14) {
+            if (closes.length < kP) return null;
+            const c = closes[closes.length - 1];
+            const hi = Math.max(...highs.slice(-kP)), lo = Math.min(...lows.slice(-kP));
+            if (hi === lo) return { k: 50 };
+            return { k: ((c - lo) / (hi - lo)) * 100 };
+        }
+        function calculateATR(closes, highs, lows, period = 14) {
+            if (closes.length < period + 1) return null;
+            let trs = [];
+            for (let i = 1; i < closes.length; i++) trs.push(Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i-1]), Math.abs(lows[i] - closes[i-1])));
+            if (trs.length < period) return null;
+            let sum = 0; for (let i = trs.length - period; i < trs.length; i++) sum += trs[i];
+            return sum / period;
+        }
+
+        function rsiSeries(data, period) {
+            const out = new Array(data.length).fill(null);
+            if (data.length < period + 1) return out;
+            let gains = 0, losses = 0;
+            for (let i = 1; i <= period; i++) { const d = data[i] - data[i - 1]; if (d > 0) gains += d; else losses += Math.abs(d); }
+            let ag = gains / period, al = losses / period;
+            out[period] = al === 0 ? 100 : 100 - (100 / (1 + ag / al));
+            for (let i = period + 1; i < data.length; i++) {
+                const d = data[i] - data[i - 1];
+                if (d > 0) { ag = (ag * (period - 1) + d) / period; al = (al * (period - 1)) / period; }
+                else { ag = (ag * (period - 1)) / period; al = (al * (period - 1) + Math.abs(d)) / period; }
+                out[i] = al === 0 ? 100 : 100 - (100 / (1 + ag / al));
+            }
+            return out;
+        }
+        function atrSeries(closes, highs, lows, period) {
+            const out = new Array(closes.length).fill(null);
+            if (closes.length < period + 1) return out;
+            const tr = new Array(closes.length).fill(0);
+            tr[0] = highs[0] - lows[0];
+            for (let i = 1; i < closes.length; i++) tr[i] = Math.max(highs[i] - lows[i], Math.abs(highs[i] - closes[i-1]), Math.abs(lows[i] - closes[i-1]));
+            let sum = 0; for (let i = 1; i <= period; i++) sum += tr[i];
+            let atr = sum / period; out[period] = atr;
+            for (let i = period + 1; i < closes.length; i++) { atr = (atr * (period - 1) + tr[i]) / period; out[i] = atr; }
+            return out;
+        }
+        function macdSeries(data) {
+            const e12 = emaSeries(data, 12), e26 = emaSeries(data, 26);
+            const lineArr = new Array(data.length).fill(null);
+            const macdVals = [], macdIdx = [];
+            for (let i = 0; i < data.length; i++) { if (e12[i] !== null && e26[i] !== null) { lineArr[i] = e12[i] - e26[i]; macdVals.push(lineArr[i]); macdIdx.push(i); } }
+            const signalArr = new Array(data.length).fill(null);
+            if (macdVals.length >= 9) { const sig = emaSeries(macdVals, 9); for (let k = 0; k < macdIdx.length; k++) if (sig[k] !== null) signalArr[macdIdx[k]] = sig[k]; }
+            return { lineArr, signalArr };
+        }
 
         // =========================================================
-        //  FUNCIONES DE ANÁLISIS (CAJA 1, 2, 3) - IDÉNTICAS
+        //  RIESGO (usa CONFIG en vivo)
         // =========================================================
-        // (analyzeBox1, analyzeBox2Weighted, analyzeBox3, calculateRisk)
-        // También las incluyo en el archivo final.
+        function calculateRisk(price, atr, signal) {
+            if (!atr || price === undefined) return null;
+            const { slMult, tp1Mult, tp2Mult } = CONFIG;
+            if (signal === "BUY") {
+                const stop = price - atr * slMult, tp1 = price + atr * tp1Mult, tp2 = price + atr * tp2Mult;
+                return { stop, tp1, tp2, ratio: (tp1 - price) / (price - stop) };
+            } else if (signal === "SELL") {
+                const stop = price + atr * slMult, tp1 = price - atr * tp1Mult, tp2 = price - atr * tp2Mult;
+                return { stop, tp1, tp2, ratio: (price - tp1) / (stop - price) };
+            }
+            return null;
+        }
 
         // =========================================================
-        //  FETCH (CARGA DE DATOS DE BINANCE DESDE EL NAVEGADOR)
+        //  CAJA 1
+        // =========================================================
+        function analyzeBox1(closes, highs, lows, volumes) {
+            const price = closes[closes.length - 1];
+            const rsi = calculateRSI(closes, 14);
+            const macd = calculateMACD(closes);
+            const ema12 = calculateEMA(closes, 12), ema26 = calculateEMA(closes, 26), ema50 = calculateEMA(closes, 50);
+            const avgVol = calculateSMA(volumes, 20);
+            const volRatio = avgVol && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
+            const atr = calculateATR(closes, highs, lows, 14);
+
+            let bull = 0, bear = 0, details = [];
+            if (rsi !== null) { if (rsi >= 50) { bull++; details.push(`RSI ${rsi.toFixed(1)} (>50, momentum alcista)`); } else { bear++; details.push(`RSI ${rsi.toFixed(1)} (<50, momentum bajista)`); } }
+            if (macd && macd.signal !== null) { if (macd.line > macd.signal) { bull++; details.push(`MACD línea > señal`); } else { bear++; details.push(`MACD línea < señal`); } }
+            if (ema12 !== null && ema26 !== null) { if (ema12 > ema26) { bull++; details.push(`EMA12 > EMA26`); } else { bear++; details.push(`EMA12 < EMA26`); } }
+            if (ema50 !== null) { if (price > ema50) { bull++; details.push(`Precio sobre EMA50`); } else { bear++; details.push(`Precio bajo EMA50`); } }
+
+            let volConfirm = 'normal';
+            if (volRatio > 1.2) volConfirm = 'alto'; else if (volRatio < 0.8) volConfirm = 'bajo';
+            details.push(`Volumen ${volRatio.toFixed(1)}x (${volConfirm})`);
+
+            const th = CONFIG.box1Threshold;
+            let signal = "HOLD";
+            if (bull >= th) signal = "BUY"; else if (bear >= th) signal = "SELL";
+
+            let caution = null;
+            if (rsi !== null) {
+                if (signal === 'BUY' && rsi > 75) caution = 'RSI en sobrecompra (>75): posible entrada tardía.';
+                if (signal === 'SELL' && rsi < 25) caution = 'RSI en sobreventa (<25): posible venta tardía.';
+            }
+            let atrPercent = (atr !== null && price > 0) ? (atr / price) * 100 : null;
+            return { signal, votes: { bull, bear }, details, price, rsi, ema12, ema26, ema50, volRatio, atr, atrPercent, caution, volConfirm };
+        }
+
+        // =========================================================
+        //  CAJA 2
+        // =========================================================
+        function analyzeBox2Weighted(closes, highs, lows, volumes) {
+            const price = closes[closes.length - 1];
+            const rsi14 = calculateRSI(closes, 14), rsi21 = calculateRSI(closes, 21);
+            const macd = calculateMACD(closes);
+            const ema12 = calculateEMA(closes, 12), ema26 = calculateEMA(closes, 26), ema50 = calculateEMA(closes, 50), ema200 = calculateEMA(closes, 200);
+            const bb = calculateBollinger(closes, 20, 2);
+            const stoch = calculateStochastic(closes, highs, lows, 14);
+            const atr = calculateATR(closes, highs, lows, 14);
+            const avgVol = calculateSMA(volumes, 50);
+            const volRatio = avgVol && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
+
+            let score = 0, details = [], iv = {};
+            if (ema50 !== null && ema200 !== null) { if (ema50 > ema200) { score += 3; details.push(`EMA50 > EMA200 (+3)`); } else { score -= 3; details.push(`EMA50 < EMA200 (-3)`); } iv.ema50_200 = ema50 > ema200 ? 'alcista' : 'bajista'; }
+            if (macd && macd.signal !== null) { if (macd.line > macd.signal) { score += 2; details.push(`MACD > señal (+2)`); } else { score -= 2; details.push(`MACD < señal (-2)`); } iv.macd = macd.line > macd.signal ? 'alcista' : 'bajista'; }
+            if (ema12 !== null && ema26 !== null) { if (ema12 > ema26) { score += 2; details.push(`EMA12 > EMA26 (+2)`); } else { score -= 2; details.push(`EMA12 < EMA26 (-2)`); } iv.ema12_26 = ema12 > ema26 ? 'alcista' : 'bajista'; }
+            if (ema200 !== null) { if (price > ema200) { score += 3; details.push(`Precio sobre EMA200 (+3)`); } else { score -= 3; details.push(`Precio bajo EMA200 (-3)`); } iv.vsEMA200 = price > ema200 ? 'alcista' : 'bajista'; }
+            if (rsi14 !== null) { if (rsi14 < 35) { score += 1; details.push(`RSI14 ${rsi14.toFixed(1)} sobreventa (+1)`); } else if (rsi14 > 65) { score -= 1; details.push(`RSI14 ${rsi14.toFixed(1)} sobrecompra (-1)`); } else details.push(`RSI14 ${rsi14.toFixed(1)} (neutral)`); iv.rsi14 = rsi14; }
+            if (rsi21 !== null) { if (rsi21 < 35) { score += 1; details.push(`RSI21 ${rsi21.toFixed(1)} sobreventa (+1)`); } else if (rsi21 > 65) { score -= 1; details.push(`RSI21 ${rsi21.toFixed(1)} sobrecompra (-1)`); } else details.push(`RSI21 ${rsi21.toFixed(1)} (neutral)`); iv.rsi21 = rsi21; }
+            if (volRatio > 1.3) { score += 1; details.push(`Volumen ${volRatio.toFixed(1)}x alto (+1)`); } else if (volRatio < 0.7) { score -= 1; details.push(`Volumen ${volRatio.toFixed(1)}x bajo (-1)`); } else details.push(`Volumen ${volRatio.toFixed(1)}x (normal)`);
+            iv.vol = volRatio;
+            if (bb !== null) { const bP = (price - bb.lower) / (bb.upper - bb.lower); iv.bb = bP; details.push(`Boll %B ${bP.toFixed(2)}`); }
+            if (stoch !== null) { iv.stoch = stoch.k; details.push(`Estoc ${stoch.k.toFixed(0)}`); }
+            if (atr !== null) { const aP = (atr / price) * 100; iv.atr = aP; details.push(`ATR ${aP.toFixed(1)}%`); }
+
+            const th = CONFIG.box2Threshold;
+            let signal = "HOLD";
+            if (score >= th) signal = "BUY"; else if (score <= -th) signal = "SELL";
+            const confidence = Math.min(100, Math.abs(score) * 10);
+            return { signal, score, confidence, details, indicValues: iv };
+        }
+
+        // =========================================================
+        //  CAJA 3 (semanal)
+        // =========================================================
+        function analyzeBox3(closes, highs, lows, volumes) {
+            const price = closes[closes.length - 1];
+            const ema50 = calculateEMA(closes, 50), ema200 = calculateEMA(closes, 200);
+            const rsiW = calculateRSI(closes, 14);
+            const macd = calculateMACD(closes);
+            const avgVol = calculateSMA(volumes, 50);
+            const volRatio = avgVol && avgVol > 0 ? volumes[volumes.length - 1] / avgVol : 1;
+
+            let divergence = "No detectada";
+            if (closes.length > 40 && macd && macd.line !== null) {
+                const lb = 10, lastP = closes[closes.length - 1], prevP = closes[closes.length - 1 - lb];
+                const prevMacd = calculateMACD(closes.slice(0, closes.length - lb));
+                if (prevMacd && prevMacd.line !== null) {
+                    if (lastP < prevP && macd.line > prevMacd.line) divergence = "Alcista (posible)";
+                    else if (lastP > prevP && macd.line < prevMacd.line) divergence = "Bajista (posible)";
+                }
+            }
+            let bull = 0, bear = 0, details = [], iv = {}, hasLongData = false;
+            if (ema50 !== null && ema200 !== null) { hasLongData = true; if (ema50 > ema200) { bull++; details.push(`EMA50 > EMA200 semanal (tendencia mayor alcista)`); iv.emaCross = 'alcista'; } else { bear++; details.push(`EMA50 < EMA200 semanal (tendencia mayor bajista)`); iv.emaCross = 'bajista'; } }
+            else { iv.emaCross = 'sin datos'; details.push(`EMA50/200 semanal: histórico insuficiente para esta moneda`); }
+            if (rsiW !== null) { if (rsiW < 40) { bull++; details.push(`RSI semanal ${rsiW.toFixed(1)} (zona baja)`); } else if (rsiW > 65) { bear++; details.push(`RSI semanal ${rsiW.toFixed(1)} (zona alta)`); } else details.push(`RSI semanal ${rsiW.toFixed(1)} (neutral)`); iv.rsiM = rsiW; }
+            iv.divergence = divergence; details.push(`Divergencia MACD: ${divergence}`);
+            if (volRatio > 2.5) details.push(`Vol x${volRatio.toFixed(1)} (anómalo alto)`); else if (volRatio < 0.5) details.push(`Vol x${volRatio.toFixed(1)} (anómalo bajo)`); else details.push(`Vol x${volRatio.toFixed(1)} (normal)`);
+            iv.volAno = volRatio;
+            iv.halving = "Halving 2024 · próx. ~2028"; details.push(`Ciclo BTC: ${iv.halving} (informativo)`);
+            let signal = "HOLD";
+            if (bull >= 2) signal = "BUY"; else if (bear >= 2) signal = "SELL";
+            return { signal, votes: { bull, bear }, details, indicValues: iv, hasLongData };
+        }
+
+        // =========================================================
+        //  CONSENSO
+        // =========================================================
+        function renderConsensus(signals) {
+            const bar = document.getElementById('consensusBar');
+            const sub = document.getElementById('consensusSub');
+            const buys = signals.filter(s => s === 'BUY').length;
+            const sells = signals.filter(s => s === 'SELL').length;
+            const n = signals.length;
+            let txt, color, bg;
+            if (n > 0 && buys === n) { txt = `🟢🟢🟢 CONSENSO ALCISTA TOTAL`; color = '#3fb950'; bg = '#0d1f14'; }
+            else if (n > 0 && sells === n) { txt = `🔴🔴🔴 CONSENSO BAJISTA TOTAL`; color = '#f85149'; bg = '#1f0d0d'; }
+            else if (buys > sells) { txt = `🟢 Mayoría alcista`; color = '#3fb950'; bg = '#0d1117'; }
+            else if (sells > buys) { txt = `🔴 Mayoría bajista`; color = '#f85149'; bg = '#0d1117'; }
+            else { txt = `⚪ Sin consenso claro`; color = '#8b949e'; bg = '#0d1117'; }
+            bar.firstChild.nodeValue = txt + ' ';
+            bar.style.color = color; bar.style.background = bg; bar.style.borderColor = color;
+            sub.textContent = `Operativa: ${signals[0] || '—'} · Ponderada: ${signals[1] || '—'} · Semanal: ${signals[2] || '—'}  (${buys} alcista / ${sells} bajista de ${n})`;
+        }
+
+        // =========================================================
+        //  FUNCIONES DE ACCIÓN RÁPIDA (NUEVO)
+        // =========================================================
+        function openBinance(symbol) {
+            const pair = symbol.replace('USDT', '_USDT');
+            window.open(`https://www.binance.com/es/trade/${pair}`, '_blank');
+        }
+
+        function copyTradeDetails(symbol, price, signal, risk) {
+            if (!risk) return;
+            const dir = signal === 'BUY' ? 'COMPRA' : 'VENTA';
+            const dec = price < 1 ? 6 : 2;
+            const text = `📋 ${symbol} | ${dir}\n📍 Entrada: $${price.toFixed(dec)}\n🛑 Stop Loss: $${risk.stop.toFixed(dec)}\n🎯 TP1: $${risk.tp1.toFixed(dec)}\n🚀 TP2: $${risk.tp2.toFixed(dec)}\n📊 R:R: 1:${risk.ratio.toFixed(2)}`;
+            navigator.clipboard.writeText(text).then(() => {
+                const btn = document.getElementById('copyBtn');
+                if (btn) { btn.textContent = '✅ Copiado!'; setTimeout(() => btn.textContent = '📋 Copiar Orden', 2000); }
+            }).catch(() => alert('No se pudo copiar, copia manualmente.'));
+        }
+
+        // =========================================================
+        //  FETCH (Carga de la moneda seleccionada)
         // =========================================================
         async function getKlines(symbol, interval, limit) {
             const url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
             const res = await fetch(url);
             const data = await res.json();
-            if (!Array.isArray(data)) { const msg = data && data.msg ? data.msg : 'respuesta inválida'; throw new Error(`${symbol}: ${msg}`); }
+            if (!Array.isArray(data)) { const msg = data && data.msg ? data.msg : 'respuesta inválida'; throw new Error(`${symbol}: ${msg} (¿par inexistente o delistado?)`); }
             if (data.length === 0) throw new Error(`${symbol}: sin datos`);
             return { closes: data.map(c => parseFloat(c[4])), highs: data.map(c => parseFloat(c[2])), lows: data.map(c => parseFloat(c[3])), volumes: data.map(c => parseFloat(c[5])) };
         }
@@ -466,16 +693,220 @@
 
         const signalActivation = {};
 
-        // =========================================================
-        //  FETCH SIGNAL (IDÉNTICO)
-        // =========================================================
         async function fetchSignal() {
-            // (Tal cual como lo tenías, no lo modifico para no alargar)
-            // Pero lo incluyo en el archivo final.
+            const symbol = document.getElementById('pairSelector').value;
+            const strategy = document.getElementById('strategySelector').value;
+            const priceSpan = document.getElementById('priceDisplay');
+            const timeSpan = document.getElementById('timeDisplay');
+            const pairDisplay = document.getElementById('pairDisplay');
+            const interval = strategy === 'scalp' ? '5m' : '1h';
+            const key = `${symbol}_${strategy}`;
+
+            try {
+                const op = await getKlines(symbol, interval, 500);
+                const { closes, highs, lows, volumes } = op;
+                const lastPrice = closes[closes.length - 1];
+
+                pairDisplay.textContent = symbol.replace('USDT', '/USDT');
+
+                const barsPerDay = interval === '5m' ? 288 : 24;
+                const idx24 = closes.length - 1 - barsPerDay;
+                let chgHtml = '';
+                if (idx24 >= 0 && closes[idx24] > 0) {
+                    const chg = (lastPrice - closes[idx24]) / closes[idx24] * 100;
+                    const col = chg >= 0 ? '#3fb950' : '#f85149';
+                    chgHtml = ` <span class="price-change" style="color:${col};">${chg >= 0 ? '+' : ''}${chg.toFixed(2)}% 24h</span>`;
+                }
+                priceSpan.innerHTML = `$ ${fmtPrice(lastPrice)}${chgHtml}`;
+                timeSpan.textContent = `Actualizado: ${new Date().toLocaleString()}`;
+
+                // ===== CAJA 1 =====
+                const b1 = analyzeBox1(closes, highs, lows, volumes);
+                document.getElementById('c1v1').textContent = b1.rsi !== null ? b1.rsi.toFixed(1) : '--';
+                document.getElementById('c1v1').className = 'value' + (b1.rsi !== null ? (b1.rsi >= 50 ? ' bullish' : ' bearish') : ' neutral');
+                document.getElementById('c1v2').textContent = b1.signal === 'BUY' ? '🟢 Alcista' : b1.signal === 'SELL' ? '🔴 Bajista' : '⏸️ Neutral';
+                document.getElementById('c1v2').className = 'value' + (b1.signal === 'BUY' ? ' bullish' : b1.signal === 'SELL' ? ' bearish' : ' neutral');
+                document.getElementById('c1v3').textContent = (b1.ema12 !== null && b1.ema26 !== null) ? (b1.ema12 > b1.ema26 ? '🟢 Alcista' : '🔴 Bajista') : '--';
+                document.getElementById('c1v3').className = 'value' + (b1.ema12 !== null ? (b1.ema12 > b1.ema26 ? ' bullish' : ' bearish') : ' neutral');
+                document.getElementById('c1v4').textContent = (b1.ema50 !== null) ? (lastPrice > b1.ema50 ? '🟢 Sobre' : '🔴 Bajo') : '--';
+                document.getElementById('c1v4').className = 'value' + (b1.ema50 !== null ? (lastPrice > b1.ema50 ? ' bullish' : ' bearish') : ' neutral');
+                document.getElementById('c1v5').textContent = b1.volRatio ? `${b1.volRatio.toFixed(1)}x` : '--';
+                document.getElementById('c1v5').className = 'value' + (b1.volConfirm === 'alto' ? ' bullish' : b1.volConfirm === 'bajo' ? ' bearish' : ' neutral');
+
+                const now = Date.now();
+                let activationInfo = "";
+                if (b1.signal !== "HOLD") {
+                    if (!signalActivation[key] || signalActivation[key].signal !== b1.signal) signalActivation[key] = { signal: b1.signal, time: now };
+                    const el = now - signalActivation[key].time;
+                    const em = Math.floor(el / 60000), es = Math.floor((el % 60000) / 1000);
+                    const hourStr = new Date(signalActivation[key].time).toLocaleTimeString();
+                    const sn = strategy === 'scalp' ? 'Scalping (5m)' : 'Swing (1h)';
+                    const isLate = (strategy === 'scalp' && em >= 5) || (strategy === 'swing' && em >= 30);
+                    const warn = isLate ? `⚠️ Posible retraso para ${sn}` : `✅ Fresca para ${sn}`;
+                    activationInfo = `<div class="signal-timer ${isLate ? 'timer-late' : 'timer-fresh'}">⏰ Activa desde ${hourStr} (hace ${em}m ${es}s) · ${warn}</div>`;
+                } else { if (signalActivation[key]) delete signalActivation[key]; activationInfo = `<div class="signal-timer timer-hold">⏸️ Sin señal activa en este momento.</div>`; }
+
+                const riskContainer = document.getElementById('riskContainer');
+                let risk = (b1.signal !== "HOLD" && b1.atr !== null) ? calculateRisk(lastPrice, b1.atr, b1.signal) : null;
+
+                let html1 = `<span class="veredicto ${b1.signal === 'BUY' ? 'bull' : b1.signal === 'SELL' ? 'bear' : 'neutral'}">Señal: ${b1.signal} (${b1.votes.bull} alcistas / ${b1.votes.bear} bajistas de 4 · umbral ${CONFIG.box1Threshold})</span><br>`;
+                html1 += b1.details.map(d => `▸ ${d}`).join('<br>');
+                if (b1.caution) html1 += `<div class="caution-line">⚠️ ${b1.caution}</div>`;
+                if (b1.atr !== null && b1.atrPercent !== null) {
+                    const dir = b1.signal === 'BUY' ? 1 : (b1.signal === 'SELL' ? -1 : 0);
+                    if (dir !== 0) {
+                        const dec = lastPrice < 1 ? 6 : 4;
+                        const t1 = lastPrice + b1.atr * dir, t2 = lastPrice + b1.atr * 2 * dir;
+                        const col = dir === 1 ? '#3fb950' : '#f85149';
+                        const c1 = b1.atrPercent * dir, c2 = b1.atrPercent * 2 * dir;
+                        html1 += `<div class="projection-block"><div class="proj-title">📊 Estimación de movimiento (ATR 14):</div><div style="display:flex; justify-content:space-between; flex-wrap:wrap; gap:4px; margin-top:2px;"><span>🔄 Volatilidad: <span style="color:#c9d1d9; font-weight:600;">${b1.atrPercent.toFixed(1)}%</span></span><span style="color:${col};">🎯 1x ATR: ${c1 > 0 ? '+' : ''}${c1.toFixed(1)}% ($${t1.toFixed(dec)})</span><span style="color:${col};">🔥 2x ATR: ${c2 > 0 ? '+' : ''}${c2.toFixed(1)}% ($${t2.toFixed(dec)})</span></div><div style="font-size:0.55rem; color:#484f58; margin-top:2px;">🛡️ Mínimo para cubrir comisiones: ~0.2%</div></div>`;
+                    } else { html1 += `<div class="projection-block"><div class="proj-title">📊 Volatilidad (ATR 14):</div><span>🔄 Movimiento típico: ±${b1.atrPercent.toFixed(1)}%</span></div>`; }
+                }
+                html1 += activationInfo;
+                document.getElementById('expl1').innerHTML = html1;
+
+                // Renderizar riesgo y acciones rápidas
+                if (risk) {
+                    const dirC = b1.signal === 'BUY' ? 'bull' : 'bear';
+                    const rr = risk.ratio, dec = lastPrice < 1 ? 6 : 4;
+                    const pSL = (risk.stop - lastPrice) / lastPrice * 100, pT1 = (risk.tp1 - lastPrice) / lastPrice * 100, pT2 = (risk.tp2 - lastPrice) / lastPrice * 100;
+                    const cSpot = 0.15, cFut = 0.075;
+                    let cal, colCal;
+                    if (rr >= 1.5) { cal = '🟢 Buena (≥1.5)'; colCal = '#3fb950'; } else if (rr >= 1.0) { cal = '🟡 Aceptable (≥1.0)'; colCal = '#f0883e'; } else { cal = '🔴 Mala (<1.0)'; colCal = '#f85149'; }
+                    riskContainer.innerHTML = `<div class="risk-block">
+                        <div><span class="label">📍 Entrada</span> <span class="value">$${lastPrice.toFixed(dec)}</span></div>
+                        <div><span class="label">🛑 Stop (${CONFIG.slMult}x ATR)</span> <span class="value ${dirC}">$${risk.stop.toFixed(dec)}</span> <span style="color:#8b949e; font-size:0.6rem;">(${pSL.toFixed(2)}%)</span></div>
+                        <div><span class="label">🎯 TP1 (${CONFIG.tp1Mult}x ATR)</span> <span class="value ${dirC}">$${risk.tp1.toFixed(dec)}</span> <span style="color:#8b949e; font-size:0.6rem;">(${pT1.toFixed(2)}%)</span></div>
+                        <div><span class="label">🚀 TP2 (${CONFIG.tp2Mult}x ATR)</span> <span class="value ${dirC}">$${risk.tp2.toFixed(dec)}</span> <span style="color:#8b949e; font-size:0.6rem;">(${pT2.toFixed(2)}%)</span></div>
+                        <div style="grid-column: span 2; text-align:center; margin-top:4px; border-top:1px solid #21262d; padding-top:4px; font-size:0.65rem;"><span class="label">Ratio Riesgo:Beneficio (a TP1): </span><span style="font-weight:700; color:${colCal};">1 : ${rr.toFixed(2)} ${cal}</span></div>
+                        <div style="grid-column: span 2; font-size:0.6rem; color:#484f58; border-top:1px solid #21262d; padding-top:4px; display:flex; justify-content:space-between; flex-wrap:wrap;"><span>🔹 Spot neto: SL ${(pSL-cSpot).toFixed(2)}% · TP1 ${(pT1-cSpot).toFixed(2)}% · TP2 ${(pT2-cSpot).toFixed(2)}%</span><span>🔸 Futuros neto: SL ${(pSL-cFut).toFixed(2)}% · TP1 ${(pT1-cFut).toFixed(2)}% · TP2 ${(pT2-cFut).toFixed(2)}%</span></div>
+                    </div>`;
+                    
+                    // Acciones rápidas
+                    const qa = document.getElementById('quickActions');
+                    qa.style.display = 'flex';
+                    qa.innerHTML = `
+                        <button class="qa-btn binance" onclick="openBinance('${symbol}')">🔗 Abrir Binance</button>
+                        <button class="qa-btn copy" id="copyBtn" onclick="copyTradeDetails('${symbol.replace('USDT', '/USDT')}', ${lastPrice}, '${b1.signal}', ${JSON.stringify(risk).replace(/"/g, '&quot;')})">📋 Copiar Orden</button>
+                    `;
+                } else {
+                    document.getElementById('quickActions').style.display = 'none';
+                }
+
+                // ===== CAJA 2 =====
+                const b2 = analyzeBox2Weighted(closes, highs, lows, volumes);
+                const iv = b2.indicValues;
+                const setV = (id, txt, cls) => { const e = document.getElementById(id); e.textContent = txt; e.className = 'value' + cls; };
+                setV('c2v1', iv.rsi14 !== undefined ? iv.rsi14.toFixed(1) : '--', iv.rsi14 !== undefined ? (iv.rsi14 < 35 ? ' bullish' : iv.rsi14 > 65 ? ' bearish' : ' neutral') : ' neutral');
+                setV('c2v2', iv.rsi21 !== undefined ? iv.rsi21.toFixed(1) : '--', iv.rsi21 !== undefined ? (iv.rsi21 < 35 ? ' bullish' : iv.rsi21 > 65 ? ' bearish' : ' neutral') : ' neutral');
+                setV('c2v3', iv.macd || '--', iv.macd === 'alcista' ? ' bullish' : iv.macd === 'bajista' ? ' bearish' : ' neutral');
+                setV('c2v4', iv.ema12_26 || '--', iv.ema12_26 === 'alcista' ? ' bullish' : iv.ema12_26 === 'bajista' ? ' bearish' : ' neutral');
+                setV('c2v5', iv.ema50_200 || '--', iv.ema50_200 === 'alcista' ? ' bullish' : iv.ema50_200 === 'bajista' ? ' bearish' : ' neutral');
+                setV('c2v6', iv.bb !== undefined ? iv.bb.toFixed(2) : '--', iv.bb !== undefined ? (iv.bb < 0.2 ? ' bullish' : iv.bb > 0.8 ? ' bearish' : ' neutral') : ' neutral');
+                setV('c2v7', iv.stoch !== undefined ? iv.stoch.toFixed(0) : '--', iv.stoch !== undefined ? (iv.stoch < 20 ? ' bullish' : iv.stoch > 80 ? ' bearish' : ' neutral') : ' neutral');
+                setV('c2v8', iv.atr !== undefined ? iv.atr.toFixed(1) + '%' : '--', ' neutral');
+                setV('c2v9', iv.vol !== undefined ? iv.vol.toFixed(1) + 'x' : '--', iv.vol !== undefined ? (iv.vol > 1.3 ? ' bullish' : iv.vol < 0.7 ? ' bearish' : ' neutral') : ' neutral');
+                setV('c2v10', iv.vsEMA200 || '--', iv.vsEMA200 === 'alcista' ? ' bullish' : iv.vsEMA200 === 'bajista' ? ' bearish' : ' neutral');
+                const v2 = document.getElementById('v2');
+                v2.textContent = b2.signal === 'BUY' ? `🟢 COMPRA (${b2.confidence}%)` : b2.signal === 'SELL' ? `🔴 VENTA (${b2.confidence}%)` : `⚪ HOLD (${b2.confidence}%)`;
+                v2.className = 'veredicto-mini ' + (b2.signal === 'BUY' ? 'verde-mini' : b2.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+                let html2 = `<span class="veredicto ${b2.signal === 'BUY' ? 'bull' : b2.signal === 'SELL' ? 'bear' : 'neutral'}">Señal: ${b2.signal} · Puntuación ${b2.score} (umbral ±${CONFIG.box2Threshold}) · Confianza ${b2.confidence}%</span><br>`;
+                html2 += b2.details.slice(0, 6).map(d => `▸ ${d}`).join('<br>');
+                document.getElementById('expl2').innerHTML = html2;
+
+                // ===== CAJA 3 (para ATH y contexto) =====
+                let pctFromAth = 0;
+                let athVal = 0;
+                let esSuper = false;
+                let esMegaSell = false;
+
+                // ===== CAJA 3 + CONSENSO =====
+                let consensusSignals = [b1.signal, b2.signal];
+                try {
+                    const wk = await getKlines(symbol, '1w', 1000);
+                    const b3 = analyzeBox3(wk.closes, wk.highs, wk.lows, wk.volumes);
+                    const v3iv = b3.indicValues;
+                    setV('c3v1', v3iv.emaCross || '--', v3iv.emaCross === 'alcista' ? ' bullish' : v3iv.emaCross === 'bajista' ? ' bearish' : ' neutral');
+                    setV('c3v2', v3iv.rsiM !== undefined ? v3iv.rsiM.toFixed(1) : '--', v3iv.rsiM !== undefined ? (v3iv.rsiM < 40 ? ' bullish' : v3iv.rsiM > 65 ? ' bearish' : ' neutral') : ' neutral');
+                    setV('c3v3', v3iv.divergence || 'No', v3iv.divergence && v3iv.divergence.startsWith('Alcista') ? ' bullish' : v3iv.divergence && v3iv.divergence.startsWith('Bajista') ? ' bearish' : ' neutral');
+                    setV('c3v4', v3iv.volAno !== undefined ? v3iv.volAno.toFixed(1) + 'x' : '--', v3iv.volAno !== undefined ? (v3iv.volAno > 2.5 ? ' bullish' : v3iv.volAno < 0.5 ? ' bearish' : ' neutral') : ' neutral');
+                    setV('c3v5', v3iv.halving || '--', ' neutral');
+                    const v3 = document.getElementById('v3');
+                    v3.textContent = b3.signal === 'BUY' ? '🟢 MEGA-COMPRA' : b3.signal === 'SELL' ? '🔴 MEGA-VENTA' : '⚪ HOLD';
+                    v3.className = 'veredicto-mini ' + (b3.signal === 'BUY' ? 'verde-mini' : b3.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+                    athVal = Math.max(...wk.highs);
+                    pctFromAth = (lastPrice - athVal) / athVal * 100;
+                    const pctToAth = athVal > lastPrice ? (athVal / lastPrice - 1) * 100 : 0;
+                    const athColor = pctFromAth > -15 ? '#3fb950' : pctFromAth > -50 ? '#f0883e' : '#8b949e';
+                    const athDec = athVal < 1 ? 6 : athVal < 100 ? 4 : 2;
+                    const athBlock = `<div class="projection-block" style="border-color:${athColor};margin-top:0;margin-bottom:6px;">
+                        <div class="proj-title">📉 Distancia al ATH (máximo histórico semanal)</div>
+                        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:4px;margin-top:2px;">
+                            <span>🏔️ ATH: <span style="color:#c9d1d9;font-weight:600;">$${athVal.toFixed(athDec)}</span></span>
+                            <span style="color:${athColor};font-weight:700;">${pctFromAth.toFixed(1)}% desde ATH</span>
+                            <span>↗️ Para recuperarlo: <span style="color:#c9d1d9;font-weight:600;">+${pctToAth.toFixed(0)}%</span></span>
+                        </div>
+                    </div>`;
+
+                    let html3 = `<span class="veredicto ${b3.signal === 'BUY' ? 'bull' : b3.signal === 'SELL' ? 'bear' : 'neutral'}">Señal: ${b3.signal} (${b3.votes.bull} / ${b3.votes.bear})</span>`;
+                    if (!b3.hasLongData) html3 += ` <span style="color:#f0883e;">· histórico corto</span>`;
+                    html3 += `<br>` + b3.details.slice(0, 5).map(d => `▸ ${d}`).join('<br>');
+                    document.getElementById('expl3').innerHTML = athBlock + html3;
+                    consensusSignals.push(b3.signal);
+
+                    // ===== SÚPER FUERTE (BUY) y MEGA SELL (NUEVO) =====
+                    const isAthGood = pctFromAth < -30; // Más de 30% por debajo del ATH
+                    if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv.vsEMA200 === 'alcista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 45 && b1.rsi <= 78 && isAthGood) {
+                        esSuper = true;
+                    }
+                    if (b1.signal === 'SELL' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv.vsEMA200 === 'bajista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 22 && b1.rsi <= 55) {
+                        esMegaSell = true;
+                    }
+
+                } catch (e3) {
+                    document.getElementById('expl3').innerHTML = `<span style="color:#f0883e;">Contexto de largo plazo no disponible: ${e3.message}</span>`;
+                    document.getElementById('v3').textContent = '⚪ --';
+                    document.getElementById('v3').className = 'veredicto-mini gris-mini';
+                }
+                renderConsensus(consensusSignals);
+
+                // ===== APLICAR MEGA EN LA UI =====
+                const v1 = document.getElementById('v1'), box1 = document.getElementById('box1');
+                // Resetear clases
+                box1.classList.remove('mega-buy', 'mega-sell');
+                if (esSuper) {
+                    v1.textContent = '🔥🔥 MEGA COMPRA (¡OPORTUNIDAD!)';
+                    v1.className = 'veredicto-mini verde-mini';
+                    box1.classList.add('mega-buy');
+                    // Notificar
+                    const pairName = symbol.replace('USDT', '/USDT');
+                    sendNotification(`🚀 MEGA COMPRA DETECTADA`, `${pairName} - Subida potencial grande. Revisa la app!`, 'mega_buy');
+                    playSound();
+                } else if (esMegaSell) {
+                    v1.textContent = '🔥🔥 MEGA VENTA (¡PROTEGETE!)';
+                    v1.className = 'veredicto-mini rojo-mini';
+                    box1.classList.add('mega-sell');
+                    const pairName = symbol.replace('USDT', '/USDT');
+                    sendNotification(`🔴 MEGA VENTA DETECTADA`, `${pairName} - Posible caída fuerte. Revisa la app!`, 'mega_sell');
+                    playSound();
+                } else {
+                    v1.textContent = b1.signal === 'BUY' ? '🟢 COMPRA' : b1.signal === 'SELL' ? '🔴 VENTA' : '⚪ HOLD';
+                    v1.className = 'veredicto-mini ' + (b1.signal === 'BUY' ? 'verde-mini' : b1.signal === 'SELL' ? 'rojo-mini' : 'gris-mini');
+                    box1.style.borderColor = '#58a6ff';
+                }
+
+            } catch (error) {
+                console.error(error);
+                document.getElementById('priceDisplay').textContent = '$ --';
+                document.querySelectorAll('.explanation-box').forEach(el => el.innerHTML = `<span style="color:#f85149;">Error: ${error.message}</span>`);
+                document.getElementById('riskContainer').innerHTML = '';
+                document.getElementById('quickActions').style.display = 'none';
+                renderConsensus([]);
+            }
         }
 
         // =========================================================
-        //  ESCÁNER MEJORADO (IDÉNTICO, PERO GUARDA RESULTADOS)
+        //  ESCÁNER MEJORADO CON IA HEURÍSTICA Y FILTRO MEGA
         // =========================================================
         async function scanMarket() {
             const scanBtn = document.getElementById('scanBtn');
@@ -515,6 +946,7 @@
                         risk = calculateRisk(price, b1.atr, b1.signal);
                     }
 
+                    // Calcular ATH para el bonus
                     const athVal = Math.max(...k7.highs);
                     const pctFromAth = (price - athVal) / athVal * 100;
                     const isAthGood = pctFromAth < -30;
@@ -549,6 +981,7 @@
                     if (b1.rsi !== null && b1.signal === 'BUY' && b1.rsi > 75) { score -= 1; reasons.push('RSI muy sobrecomprado (>75) -1'); }
                     if (b1.rsi !== null && b1.signal === 'SELL' && b1.rsi < 25) { score -= 1; reasons.push('RSI muy sobrevendido (<25) -1'); }
 
+                    // Detectar MEGA (igual que en fetchSignal)
                     const iv2 = b2.indicValues;
                     if (b1.signal === 'BUY' && risk && risk.ratio >= 1.5 && b2.confidence >= 60 && iv2.vsEMA200 === 'alcista' && b1.volRatio >= 1.2 && b1.rsi !== null && b1.rsi >= 45 && b1.rsi <= 78 && isAthGood) {
                         isMega = true;
@@ -578,35 +1011,7 @@
                 }
             }
 
-            // Guardamos los resultados en una variable global
-            lastScanResults = {
-                opportunities,
-                total,
-                errores,
-                filterMega
-            };
-
-            // Mostrar en UI
-            renderScanResults(opportunities, total, errores, filterMega);
-
-            // Mostrar el botón de Telegram si hay oportunidades
-            const tgBtn = document.getElementById('telegramSendBtn');
-            if (opportunities.length > 0) {
-                tgBtn.style.display = 'block';
-                tgBtn.disabled = false;
-            } else {
-                tgBtn.style.display = 'none';
-            }
-
-            scanBtn.disabled = false;
-            scanBtn.textContent = '🔍 Escanear Mercado (Buscar Señales)';
-        }
-
-        // =========================================================
-        //  RENDERIZAR RESULTADOS DEL ESCÁNER (extraído para reutilizar)
-        // =========================================================
-        function renderScanResults(opportunities, total, errores, filterMega) {
-            const resultsDiv = document.getElementById('scanResults');
+            // Filtrar si está marcado el checkbox
             let filteredOpps = opportunities;
             if (filterMega) {
                 filteredOpps = opportunities.filter(o => o.isMega === true);
@@ -674,87 +1079,185 @@
 
             html += `<div class="scan-meta"><span>⏳ Último escaneo: ${new Date().toLocaleTimeString()}</span><span>📡 ${total} analizadas${errores ? ` · ${errores} con error` : ''}</span></div>`;
             resultsDiv.innerHTML = html;
+            scanBtn.disabled = false;
+            scanBtn.textContent = '🔍 Escanear Mercado (Buscar Señales)';
         }
 
         // =========================================================
-        //  ENVIAR RESULTADOS A TELEGRAM (NUEVO)
+        //  BACKTEST (sin cambios, se mantiene igual)
         // =========================================================
-        async function sendToTelegram() {
-            const btn = document.getElementById('telegramSendBtn');
-            btn.disabled = true;
-            btn.textContent = '⏳ Enviando...';
-
-            if (!lastScanResults || lastScanResults.opportunities.length === 0) {
-                alert('No hay resultados para enviar. Ejecuta el escaneo primero.');
-                btn.disabled = false;
-                btn.textContent = '📤 Enviar resultados a Telegram';
-                return;
+        async function getKlinesPaged(symbol, interval, pages) {
+            let all = [], endTime = undefined;
+            for (let p = 0; p < pages; p++) {
+                let url = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=1000`;
+                if (endTime) url += `&endTime=${endTime}`;
+                const res = await fetch(url);
+                const data = await res.json();
+                if (!Array.isArray(data)) { const msg = data && data.msg ? data.msg : 'inválido'; throw new Error(`${symbol}: ${msg}`); }
+                if (data.length === 0) break;
+                all = data.concat(all);
+                endTime = data[0][0] - 1;
+                if (data.length < 1000) break;
             }
+            return {
+                openTimes: all.map(c => c[0]),
+                closes: all.map(c => parseFloat(c[4])),
+                highs: all.map(c => parseFloat(c[2])),
+                lows: all.map(c => parseFloat(c[3])),
+                volumes: all.map(c => parseFloat(c[5]))
+            };
+        }
 
-            // Construir mensaje
-            const { opportunities, total, errores } = lastScanResults;
-            let message = `<b>📊 TOP 3 OPORTUNIDADES</b>\n`;
-            message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n`;
-            message += `⚙️ Umbrales: C1=${CONFIG.box1Threshold}, C2=${CONFIG.box2Threshold}\n\n`;
+        function runBacktest(k, interval) {
+            const { closes, highs, lows } = k;
+            const n = closes.length;
+            const e12 = emaSeries(closes, 12), e26 = emaSeries(closes, 26), e50 = emaSeries(closes, 50);
+            const rsiArr = rsiSeries(closes, 14);
+            const { lineArr, signalArr } = macdSeries(closes);
+            const atrArr = atrSeries(closes, highs, lows, 14);
+            const th = CONFIG.box1Threshold;
+            const feeRT = 0.15;
+            const maxHold = interval === '5m' ? 60 : 48;
+            const trades = [];
+            const eqSeries = [100];
+            let eq = 100, peak = 100, maxDD = 0;
 
-            const top = opportunities.slice(0, 3);
-            if (top.length === 0) {
-                message += `⚪ No se encontraron oportunidades destacadas.`;
-            } else {
-                top.forEach((item, idx) => {
-                    const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-                    const color = item.signal === 'BUY' ? '🟢' : '🔴';
-                    message += `${emoji} <b>${item.symbol}</b> ${color} ${item.signal} · Score: ${item.score.toFixed(1)}\n`;
-                    message += `💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}`;
-                    if (item.b1.rsi !== null) message += ` 📊 RSI: ${item.b1.rsi.toFixed(1)}`;
-                    if (item.b1.atrPercent !== null) message += ` ⚡ ATR: ${item.b1.atrPercent.toFixed(1)}%`;
-                    if (item.risk) {
-                        message += ` 📈 R:R: ${item.risk.ratio.toFixed(2)}`;
-                        message += ` 🛑 SL: $${item.risk.stop.toFixed(item.price < 1 ? 6 : 2)}`;
-                        message += ` 🎯 TP1: $${item.risk.tp1.toFixed(item.price < 1 ? 6 : 2)}`;
+            for (let i = 60; i < n - 1; i++) {
+                if (rsiArr[i] === null || e12[i] === null || e26[i] === null || e50[i] === null || lineArr[i] === null || signalArr[i] === null || atrArr[i] === null) continue;
+                let bull = 0, bear = 0;
+                if (rsiArr[i] >= 50) bull++; else bear++;
+                if (lineArr[i] > signalArr[i]) bull++; else bear++;
+                if (e12[i] > e26[i]) bull++; else bear++;
+                if (closes[i] > e50[i]) bull++; else bear++;
+                let sig = null;
+                if (bull >= th) sig = 'BUY'; else if (bear >= th) sig = 'SELL';
+                if (!sig) continue;
+
+                const entry = closes[i], atr = atrArr[i];
+                let stop, tp;
+                if (sig === 'BUY') { stop = entry - atr * CONFIG.slMult; tp = entry + atr * CONFIG.tp1Mult; }
+                else { stop = entry + atr * CONFIG.slMult; tp = entry - atr * CONFIG.tp1Mult; }
+
+                let outcome = null, exitPrice = null, holdBars = 0;
+                for (let j = i + 1; j < Math.min(n, i + 1 + maxHold); j++) {
+                    holdBars = j - i;
+                    if (sig === 'BUY') {
+                        if (lows[j] <= stop) { outcome = 'sl'; exitPrice = stop; break; }
+                        if (highs[j] >= tp) { outcome = 'tp'; exitPrice = tp; break; }
+                    } else {
+                        if (highs[j] >= stop) { outcome = 'sl'; exitPrice = stop; break; }
+                        if (lows[j] <= tp) { outcome = 'tp'; exitPrice = tp; break; }
                     }
-                    message += `\n🧠 ${item.reasons}\n\n`;
-                });
-            }
-
-            if (errores > 0) {
-                message += `\n⚠️ ${errores} monedas con error.`;
-            }
-
-            // Enviar a la función de Netlify
-            try {
-                const response = await fetch('/.netlify/functions/send-telegram', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ message })
-                });
-
-                if (response.ok) {
-                    btn.textContent = '✅ Enviado!';
-                    alert('Mensaje enviado a Telegram correctamente.');
-                } else {
-                    const errorText = await response.text();
-                    throw new Error(errorText);
                 }
-            } catch (err) {
-                alert('Error al enviar: ' + err.message);
-                btn.textContent = '❌ Error';
+                if (!outcome) { const j = Math.min(n - 1, i + maxHold); exitPrice = closes[j]; holdBars = j - i; outcome = 'timeout'; }
+
+                let ret = (sig === 'BUY') ? (exitPrice - entry) / entry * 100 : (entry - exitPrice) / entry * 100;
+                ret -= feeRT;
+                trades.push({ sig, ret, outcome, holdBars });
+                eq *= (1 + ret / 100); eqSeries.push(eq);
+                if (eq > peak) peak = eq;
+                const dd = (peak - eq) / peak * 100; if (dd > maxDD) maxDD = dd;
+
+                i = i + holdBars;
             }
 
-            setTimeout(() => {
-                btn.disabled = false;
-                btn.textContent = '📤 Enviar resultados a Telegram';
-            }, 3000);
+            const N = trades.length;
+            const wins = trades.filter(t => t.ret > 0), losses = trades.filter(t => t.ret <= 0);
+            const grossWin = wins.reduce((a, t) => a + t.ret, 0);
+            const grossLoss = Math.abs(losses.reduce((a, t) => a + t.ret, 0));
+            return {
+                N, wins: wins.length, losses: losses.length,
+                winRate: N ? wins.length / N * 100 : 0,
+                avgWin: wins.length ? grossWin / wins.length : 0,
+                avgLoss: losses.length ? -grossLoss / losses.length : 0,
+                profitFactor: grossLoss > 0 ? grossWin / grossLoss : (grossWin > 0 ? Infinity : 0),
+                expectancy: N ? trades.reduce((a, t) => a + t.ret, 0) / N : 0,
+                totalReturn: eq - 100,
+                maxDD,
+                avgHold: N ? trades.reduce((a, t) => a + t.holdBars, 0) / N : 0,
+                tpHits: trades.filter(t => t.outcome === 'tp').length,
+                slHits: trades.filter(t => t.outcome === 'sl').length,
+                timeouts: trades.filter(t => t.outcome === 'timeout').length,
+                longs: trades.filter(t => t.sig === 'BUY').length,
+                shorts: trades.filter(t => t.sig === 'SELL').length,
+                eqSeries
+            };
+        }
+
+        function sparkline(eq) {
+            if (eq.length < 2) return '';
+            const w = 320, h = 60, pad = 4;
+            const min = Math.min(...eq), max = Math.max(...eq), range = (max - min) || 1;
+            const pts = eq.map((v, i) => `${(pad + (i / (eq.length - 1)) * (w - 2 * pad)).toFixed(1)},${(h - pad - ((v - min) / range) * (h - 2 * pad)).toFixed(1)}`).join(' ');
+            const up = eq[eq.length - 1] >= eq[0];
+            const baseY = (h - pad - ((100 - min) / range) * (h - 2 * pad)).toFixed(1);
+            return `<svg width="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" style="margin-top:8px;">
+                <line x1="0" y1="${baseY}" x2="${w}" y2="${baseY}" stroke="#30363d" stroke-dasharray="3 3" stroke-width="1"/>
+                <polyline points="${pts}" fill="none" stroke="${up ? '#3fb950' : '#f85149'}" stroke-width="1.5"/>
+            </svg>`;
+        }
+
+        function renderBacktest(r, meta) {
+            const out = document.getElementById('btResults');
+            if (r.N === 0) { out.innerHTML = `<div class="scan-empty">La configuración no generó ninguna operación en <strong>${meta.symbol}</strong> en este período.<br>Probá bajar el umbral de la Caja 1 en el panel ⚙️.</div>`; return; }
+            const pf = r.profitFactor === Infinity ? '∞' : r.profitFactor.toFixed(2);
+            const good = r.profitFactor >= 1.3 && r.winRate >= 40;
+            const meh = r.profitFactor >= 1.0;
+            const vColor = good ? '#3fb950' : meh ? '#f0883e' : '#f85149';
+            const verdict = good ? '🟢 Mostró ventaja en este período histórico' : meh ? '🟡 Apenas por encima del punto de equilibrio' : '🔴 Perdedora en este período histórico';
+            const totColor = r.totalReturn >= 0 ? '#3fb950' : '#f85149';
+            const holdTime = meta.interval === '5m' ? `${(r.avgHold * 5).toFixed(0)} min` : `${r.avgHold.toFixed(1)} h`;
+            out.innerHTML = `
+                <div class="title">🧪 Backtest · ${meta.symbol} · ${meta.interval} · umbral ${CONFIG.box1Threshold} · SL ${CONFIG.slMult}× / TP1 ${CONFIG.tp1Mult}× ATR</div>
+                <div style="font-size:0.6rem;color:#484f58;margin-bottom:6px;">📅 ${meta.from} → ${meta.to} · ${meta.candles} velas · ${r.N} operaciones (${r.longs} long / ${r.shorts} short)</div>
+                <div class="bt-grid">
+                    <div class="bt-cell"><div class="k">Win rate</div><div class="v" style="color:${r.winRate >= 50 ? '#3fb950' : r.winRate >= 40 ? '#f0883e' : '#f85149'};">${r.winRate.toFixed(1)}%</div></div>
+                    <div class="bt-cell"><div class="k">Profit Factor</div><div class="v" style="color:${vColor};">${pf}</div></div>
+                    <div class="bt-cell"><div class="k">Retorno total</div><div class="v" style="color:${totColor};">${r.totalReturn >= 0 ? '+' : ''}${r.totalReturn.toFixed(1)}%</div></div>
+                    <div class="bt-cell"><div class="k">Ganancia media</div><div class="v" style="color:#3fb950;">+${r.avgWin.toFixed(2)}%</div></div>
+                    <div class="bt-cell"><div class="k">Pérdida media</div><div class="v" style="color:#f85149;">${r.avgLoss.toFixed(2)}%</div></div>
+                    <div class="bt-cell"><div class="k">Max Drawdown</div><div class="v" style="color:#f0883e;">-${r.maxDD.toFixed(1)}%</div></div>
+                    <div class="bt-cell"><div class="k">Expectativa/trade</div><div class="v" style="color:${r.expectancy >= 0 ? '#3fb950' : '#f85149'};">${r.expectancy >= 0 ? '+' : ''}${r.expectancy.toFixed(2)}%</div></div>
+                    <div class="bt-cell"><div class="k">Duración media</div><div class="v" style="color:#c9d1d9;font-size:0.8rem;">${holdTime}</div></div>
+                    <div class="bt-cell"><div class="k">TP / SL / Timeout</div><div class="v" style="color:#c9d1d9;font-size:0.75rem;">${r.tpHits}/${r.slHits}/${r.timeouts}</div></div>
+                </div>
+                <div class="bt-verdict" style="color:${vColor};border-color:${vColor};">${verdict}</div>
+                <div style="font-size:0.55rem;color:#484f58;text-align:center;margin-top:6px;">Curva de capital (empezando en 100 · línea punteada = capital inicial)</div>
+                ${sparkline(r.eqSeries)}
+                <div class="bt-caveat">
+                    ⚠️ <strong>Cómo leerlo:</strong> "Profit Factor" = cuánto ganó por cada 1 que perdió (&gt;1 es rentable). "Expectativa" = resultado promedio esperable por operación. "Max Drawdown" = la peor caída que aguantó tu capital.<br>
+                    🔬 <strong>Limitaciones honestas:</strong> resultado sobre datos pasados (no predice el futuro) · asume que Stop y TP se ejecutan al precio exacto (sin slippage) · incluye ~0.15% de comisión pero no deslizamiento real · si ambos (SL y TP) caen en la misma vela, cuenta el SL (pesimista) · ventana limitada de historial. Un buen resultado acá es condición necesaria pero NO suficiente para operar en real.
+                </div>
+            `;
+        }
+
+        async function runBacktestUI() {
+            const btn = document.getElementById('btBtn');
+            const out = document.getElementById('btResults');
+            const symbol = document.getElementById('pairSelector').value;
+            const strategy = document.getElementById('strategySelector').value;
+            const interval = strategy === 'scalp' ? '5m' : '1h';
+            const pages = strategy === 'scalp' ? 3 : 5;
+            btn.disabled = true; btn.textContent = '⏳ Descargando historial y simulando...';
+            out.innerHTML = '<div class="scan-empty">Corriendo backtest, dame unos segundos...</div>';
+            try {
+                const k = await getKlinesPaged(symbol, interval, pages);
+                if (k.closes.length < 120) { out.innerHTML = `<div class="scan-empty">No hay suficiente historial para ${symbol.replace('USDT', '/USDT')} en este timeframe.</div>`; }
+                else {
+                    const res = runBacktest(k, interval);
+                    renderBacktest(res, {
+                        symbol: symbol.replace('USDT', '/USDT'),
+                        interval, candles: k.closes.length,
+                        from: new Date(k.openTimes[0]).toLocaleDateString(),
+                        to: new Date(k.openTimes[k.openTimes.length - 1]).toLocaleDateString()
+                    });
+                }
+            } catch (e) { out.innerHTML = `<div class="scan-empty" style="color:#f85149;">Error: ${e.message}</div>`; }
+            btn.disabled = false; btn.textContent = '🧪 Backtestear esta configuración';
         }
 
         // =========================================================
-        //  BACKTEST (IDÉNTICO)
-        // =========================================================
-        // (Aquí van getKlinesPaged, runBacktest, sparkline, renderBacktest, runBacktestUI)
-        // Los incluyo en el archivo final.
-
-        // =========================================================
-        //  CONFIGURACIÓN Y INIT
+        //  WIRING DEL PANEL DE CONFIGURACIÓN
         // =========================================================
         function bindConfig() {
             document.getElementById('configToggle').addEventListener('click', () => document.getElementById('configPanel').classList.toggle('open'));
@@ -783,6 +1286,9 @@
             });
         }
 
+        // =========================================================
+        //  INIT
+        // =========================================================
         window.onload = () => { bindConfig(); fetchSignal(); };
         setInterval(fetchSignal, 120000);
     </script>
