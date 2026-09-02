@@ -199,69 +199,73 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS DE BINANCE (MULTI-ENDPOINT)
+//  OBTENER DATOS DE BINANCE (MULTI-ENDPOINT MEJORADO)
 // ============================================================
-async function getKlines(symbol, interval, limit, retries = 2) {
-  // Lista de endpoints para intentar (algunos pueden estar menos restringidos)
+async function getKlines(symbol, interval, limit) {
+  // Lista ampliada de endpoints (incluye data-api.binance.vision)
   const endpoints = [
+    'https://api.binance.com',
     'https://api1.binance.com',
     'https://api2.binance.com',
     'https://api3.binance.com',
-    'https://api.binance.com'
+    'https://data-api.binance.vision'
   ];
-  
+
+  // Mezclar aleatoriamente para evitar saturar siempre el mismo
+  const shuffled = endpoints.sort(() => Math.random() - 0.5);
   let lastError = null;
-  
-  for (let attempt = 0; attempt < endpoints.length; attempt++) {
-    const baseUrl = endpoints[attempt];
-    const url = `${baseUrl}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-    
+
+  for (let attempt = 0; attempt < shuffled.length; attempt++) {
+    const baseUrl = shuffled[attempt];
+    // Añadir parámetro anti-caché
+    const url = `${baseUrl}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}&_=${Date.now()}`;
+
     try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos
+
       const res = await fetch(url, {
         headers: {
           'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
           'Accept': 'application/json',
-          'Accept-Encoding': 'gzip, deflate, br'
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Cache-Control': 'no-cache'
         },
-        // Timeout de 5 segundos
-        signal: AbortSignal.timeout(5000)
+        signal: controller.signal
       });
-      
+      clearTimeout(timeoutId);
+
+      // Si es 451 (bloqueo geográfico), probar siguiente endpoint
       if (res.status === 451) {
-        // Error de restricción geográfica - probamos el siguiente endpoint
-        console.log(`📍 ${symbol}: Endpoint ${baseUrl} bloqueado (451), probando siguiente...`);
+        console.log(`📍 ${symbol}: 451 en ${baseUrl}, probando siguiente...`);
         continue;
       }
-      
+
       if (!res.ok) {
-        const errorText = await res.text();
+        const errorText = await res.text().catch(() => '');
         throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 100)}`);
       }
-      
+
       const data = await res.json();
-      if (!Array.isArray(data)) {
-        throw new Error(`respuesta inválida: ${JSON.stringify(data).substring(0, 80)}`);
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error('respuesta inválida o array vacío');
       }
-      if (data.length === 0) {
-        throw new Error('sin datos (array vacío)');
-      }
-      
+
       return {
         closes: data.map(c => parseFloat(c[4])),
-        highs: data.map(c => parseFloat(c[2])),
-        lows: data.map(c => parseFloat(c[3])),
+        highs:  data.map(c => parseFloat(c[2])),
+        lows:   data.map(c => parseFloat(c[3])),
         volumes: data.map(c => parseFloat(c[5]))
       };
-      
     } catch (err) {
       lastError = err;
       console.log(`⚠️ ${symbol} con ${baseUrl}: ${err.message}`);
-      // Esperamos antes de probar el siguiente
-      await new Promise(r => setTimeout(r, 300));
+      // Espera progresiva antes del siguiente intento
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
     }
   }
-  
-  // Si todos los endpoints fallaron, lanzamos el último error
+
+  // Si todos fallaron, lanzar el último error
   throw lastError || new Error(`Todos los endpoints fallaron para ${symbol}`);
 }
 
@@ -290,10 +294,10 @@ async function sendTelegram(message) {
 }
 
 // ============================================================
-//  FUNCIÓN PRINCIPAL
+//  FUNCIÓN PRINCIPAL (HANDLER)
 // ============================================================
 exports.handler = async (event, context) => {
-  console.log("🔍 Iniciando escaneo con multi-endpoint...");
+  console.log("🔍 Iniciando escaneo con multi-endpoint mejorado...");
   const allSignals = [];
   const errors = [];
 
@@ -302,7 +306,7 @@ exports.handler = async (event, context) => {
     try {
       console.log(`📊 ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
       
-      // Pausa entre peticiones
+      // Pausa entre peticiones para no sobrecargar
       if (i > 0) await new Promise(r => setTimeout(r, 250));
       
       const hourly = await getKlines(symbol, '1h', 500);
