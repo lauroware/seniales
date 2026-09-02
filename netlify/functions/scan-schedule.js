@@ -1,14 +1,13 @@
 // ============================================================
-//  CONFIGURACIÓN
+//  CONFIGURACIÓN (pon aquí tus credenciales)
 // ============================================================
-const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
-const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
+const TELEGRAM_BOT_TOKEN = 'TU_TOKEN';  // REEMPLAZA
+const TELEGRAM_CHAT_ID = 'TU_CHAT_ID';  // REEMPLAZA
 
-// Umbrales (más bajos para ser sensible)
+// Umbrales
 const UMBRAL_CAJA1 = 2;
 const UMBRAL_CAJA2 = 4;
 
-// Lista de monedas
 const COINS_ACTIVE = [
   "BTCUSDT", "ETHUSDT", "BNBUSDT",
   "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", "DOTUSDT", "AVAXUSDT",
@@ -17,7 +16,7 @@ const COINS_ACTIVE = [
 ];
 
 // ============================================================
-//  FUNCIONES DE INDICADORES (idénticas a tu web)
+//  FUNCIONES DE INDICADORES (sin cambios)
 // ============================================================
 function calculateEMA(data, period) {
   if (!data || data.length < period) return null;
@@ -199,74 +198,44 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS DE BINANCE (MULTI-ENDPOINT MEJORADO)
+//  OBTENER DATOS DE BINANCE VIA PROXY CORS (para navegador)
 // ============================================================
 async function getKlines(symbol, interval, limit) {
-  // Lista ampliada de endpoints (incluye data-api.binance.vision)
-  const endpoints = [
-    'https://api.binance.com',
-    'https://api1.binance.com',
-    'https://api2.binance.com',
-    'https://api3.binance.com',
-    'https://data-api.binance.vision'
-  ];
+  // Usamos un proxy CORS público para evitar bloqueos
+  const proxyUrl = 'https://api.allorigins.win/raw?url=';
+  const targetUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const url = proxyUrl + encodeURIComponent(targetUrl);
 
-  // Mezclar aleatoriamente para evitar saturar siempre el mismo
-  const shuffled = endpoints.sort(() => Math.random() - 0.5);
-  let lastError = null;
+  try {
+    console.log(`🔄 Solicitando ${symbol}...`);
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos
 
-  for (let attempt = 0; attempt < shuffled.length; attempt++) {
-    const baseUrl = shuffled[attempt];
-    // Añadir parámetro anti-caché
-    const url = `${baseUrl}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}&_=${Date.now()}`;
+    const res = await fetch(url, {
+      signal: controller.signal,
+      headers: { 'Accept': 'application/json' }
+    });
+    clearTimeout(timeoutId);
 
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 segundos
-
-      const res = await fetch(url, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'application/json',
-          'Accept-Encoding': 'gzip, deflate, br',
-          'Cache-Control': 'no-cache'
-        },
-        signal: controller.signal
-      });
-      clearTimeout(timeoutId);
-
-      // Si es 451 (bloqueo geográfico), probar siguiente endpoint
-      if (res.status === 451) {
-        console.log(`📍 ${symbol}: 451 en ${baseUrl}, probando siguiente...`);
-        continue;
-      }
-
-      if (!res.ok) {
-        const errorText = await res.text().catch(() => '');
-        throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 100)}`);
-      }
-
-      const data = await res.json();
-      if (!Array.isArray(data) || data.length === 0) {
-        throw new Error('respuesta inválida o array vacío');
-      }
-
-      return {
-        closes: data.map(c => parseFloat(c[4])),
-        highs:  data.map(c => parseFloat(c[2])),
-        lows:   data.map(c => parseFloat(c[3])),
-        volumes: data.map(c => parseFloat(c[5]))
-      };
-    } catch (err) {
-      lastError = err;
-      console.log(`⚠️ ${symbol} con ${baseUrl}: ${err.message}`);
-      // Espera progresiva antes del siguiente intento
-      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${await res.text()}`);
     }
-  }
 
-  // Si todos fallaron, lanzar el último error
-  throw lastError || new Error(`Todos los endpoints fallaron para ${symbol}`);
+    const data = await res.json();
+    if (!Array.isArray(data) || data.length === 0) {
+      throw new Error('respuesta inválida o vacía');
+    }
+
+    return {
+      closes: data.map(c => parseFloat(c[4])),
+      highs: data.map(c => parseFloat(c[2])),
+      lows: data.map(c => parseFloat(c[3])),
+      volumes: data.map(c => parseFloat(c[5]))
+    };
+  } catch (err) {
+    console.error(`❌ Error en ${symbol}:`, err.message);
+    throw err;
+  }
 }
 
 // ============================================================
@@ -274,12 +243,12 @@ async function getKlines(symbol, interval, limit) {
 // ============================================================
 async function sendTelegram(message) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.log("⚠️ Faltan variables de entorno");
+    console.warn("⚠️ Faltan credenciales de Telegram.");
     return;
   }
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   try {
-    await fetch(url, {
+    const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -288,16 +257,22 @@ async function sendTelegram(message) {
         parse_mode: 'HTML'
       })
     });
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`Error de Telegram: ${res.status} - ${errorText}`);
+    } else {
+      console.log("✅ Mensaje enviado a Telegram.");
+    }
   } catch (e) {
     console.error("Error enviando a Telegram:", e.message);
   }
 }
 
 // ============================================================
-//  FUNCIÓN PRINCIPAL (HANDLER)
+//  FUNCIÓN PRINCIPAL
 // ============================================================
-exports.handler = async (event, context) => {
-  console.log("🔍 Iniciando escaneo con multi-endpoint mejorado...");
+async function main() {
+  console.log("🔍 Iniciando escaneo...");
   const allSignals = [];
   const errors = [];
 
@@ -305,46 +280,43 @@ exports.handler = async (event, context) => {
     const symbol = COINS_ACTIVE[i];
     try {
       console.log(`📊 ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
-      
-      // Pausa entre peticiones para no sobrecargar
-      if (i > 0) await new Promise(r => setTimeout(r, 250));
-      
+      if (i > 0) await new Promise(r => setTimeout(r, 800)); // pausa
+
       const hourly = await getKlines(symbol, '1h', 500);
       const weekly = await getKlines(symbol, '1w', 300);
-      
+
       const price = hourly.closes[hourly.closes.length - 1];
       const b1 = analyzeBox1(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
       const b2 = analyzeBox2Weighted(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
       const b3 = analyzeBox3(weekly.closes, weekly.highs, weekly.lows, weekly.volumes);
-      
+
       const ath = Math.max(...weekly.highs);
       const pctFromAth = (price - ath) / ath * 100;
-      
+
       let risk = null;
       if (b1.signal !== "HOLD" && b1.atr !== null) {
         risk = calculateRisk(price, b1.atr, b1.signal);
       }
-      
-      // Calcular score (igual que tu web)
+
       let score = 0;
       const reasons = [];
-      
+
       if (b1.signal === 'BUY') { score += 3; reasons.push('C1 alcista (+3)'); }
       else if (b1.signal === 'SELL') { score -= 3; reasons.push('C1 bajista (-3)'); }
-      
+
       if (b2.signal === 'BUY') { score += 4; reasons.push('C2 alcista (+4)'); }
       else if (b2.signal === 'SELL') { score -= 4; reasons.push('C2 bajista (-4)'); }
-      
+
       if (b3.signal === 'BUY') { score += 2; reasons.push('C3 alcista (+2)'); }
       else if (b3.signal === 'SELL') { score -= 2; reasons.push('C3 bajista (-2)'); }
-      
+
       if (risk && risk.ratio >= 1.5) {
         score += 0.5;
         reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
       }
-      
+
       const signalDir = b1.signal !== "HOLD" ? b1.signal : (b2.signal !== "HOLD" ? b2.signal : b3.signal);
-      
+
       allSignals.push({
         symbol: symbol.replace('USDT', '/USDT'),
         price,
@@ -357,22 +329,18 @@ exports.handler = async (event, context) => {
         pctFromAth,
         signalDir
       });
-      
+
       console.log(`✅ ${symbol} -> Score: ${score.toFixed(1)}, Señal: ${signalDir}`);
-      
+
     } catch (err) {
       console.error(`❌ ${symbol}: ${err.message}`);
       errors.push(`${symbol}: ${err.message}`);
     }
   }
 
-  // Ordenar y tomar top 3
   allSignals.sort((a, b) => b.score - a.score);
   const top3 = allSignals.slice(0, 3);
 
-  console.log(`📈 Top 3: ${top3.map(s => s.symbol).join(', ')}`);
-
-  // Construir mensaje
   let message = `<b>📊 TOP 3 OPORTUNIDADES</b>\n`;
   message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n`;
   message += `⚙️ Umbrales: C1=${UMBRAL_CAJA1}, C2=${UMBRAL_CAJA2}\n\n`;
@@ -383,7 +351,6 @@ exports.handler = async (event, context) => {
     top3.forEach((item, idx) => {
       const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
       const color = item.signalDir === 'BUY' ? '🟢' : item.signalDir === 'SELL' ? '🔴' : '⚪';
-      
       message += `${emoji} <b>${item.symbol}</b> ${color} ${item.signalDir || 'HOLD'} · Score: ${item.score.toFixed(1)}\n`;
       message += `💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}`;
       if (item.b1.rsi !== null) message += ` 📊 RSI: ${item.b1.rsi.toFixed(1)}`;
@@ -400,7 +367,6 @@ exports.handler = async (event, context) => {
     });
   }
 
-  // Si hubo errores, añadir al final
   if (errors.length > 0) {
     message += `\n⚠️ Algunos símbolos fallaron:\n`;
     errors.slice(0, 5).forEach(e => message += `- ${e}\n`);
@@ -408,12 +374,8 @@ exports.handler = async (event, context) => {
   }
 
   await sendTelegram(message);
-  console.log("✅ Mensaje enviado.");
+  console.log("✅ Proceso completado.");
+}
 
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ 
-      message: `Escaneo completado. ${top3.length} oportunidades, ${errors.length} errores.` 
-    })
-  };
-};
+// Ejecutar
+main().catch(console.error);
