@@ -8,7 +8,7 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const UMBRAL_CAJA1 = 2;
 const UMBRAL_CAJA2 = 4;
 
-// Lista de monedas (reducida para pruebas, puedes ampliar)
+// Lista de monedas (puedes ampliar después)
 const COINS_ACTIVE = [
   "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"
 ];
@@ -199,7 +199,7 @@ function calculateRisk(price, atr, signal) {
 //  OBTENER DATOS DE BINANCE (CON PROXY CORS)
 // ============================================================
 async function getKlines(symbol, interval, limit) {
-  // Proxy gratuito para evitar bloqueo 451
+  // Dos proxies gratuitos para evitar bloqueo 451
   const proxies = [
     'https://corsproxy.io/?',
     'https://api.allorigins.win/raw?url='
