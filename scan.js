@@ -220,7 +220,7 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS - SOLO COINGECKO (NO BLOQUEA)
+//  OBTENER DATOS - USANDO COINGECKO (NO BLOQUEA)
 // ============================================================
 async function getKlines(symbol, interval, limit) {
   const symbolMap = {
@@ -250,7 +250,6 @@ async function getKlines(symbol, interval, limit) {
     throw new Error(`No hay mapeo para ${symbol}`);
   }
 
-  // CoinGecko: 30 días de datos diarios
   const url = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30`;
   
   console.log(`🔄 ${symbol} desde CoinGecko...`);
@@ -340,7 +339,6 @@ async function main() {
 
       const dailyData = await getKlines(symbol, '1h', 500);
       
-      // Datos semanales (cada 7 días)
       const weeklyCloses = [];
       const weeklyHighs = [];
       const weeklyLows = [];
