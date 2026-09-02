@@ -18,7 +18,7 @@ jobs:
           node-version: '20'
 
       - name: Ejecutar escáner
-        run: node test-secrets.js   # <--- CAMBIADO AQUÍ
+        run: node test-telegram.js   # <--- CAMBIADO AQUÍ
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}

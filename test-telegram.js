@@ -1,16 +1,19 @@
-// test-telegram.js
+// test.js - Prueba completa de secretos y Telegram
+console.log("🔍 VERIFICANDO SECRETOS...");
+console.log("TELEGRAM_BOT_TOKEN:", process.env.TELEGRAM_BOT_TOKEN ? "✅ Presente" : "❌ Ausente");
+console.log("TELEGRAM_CHAT_ID:", process.env.TELEGRAM_CHAT_ID ? "✅ Presente" : "❌ Ausente");
+console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+
 async function testTelegram() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
   
-  console.log("🔍 Probando Telegram...");
-  console.log("Token:", token ? "✅" : "❌");
-  console.log("Chat ID:", chatId ? "✅" : "❌");
-  
   if (!token || !chatId) {
-    console.log("❌ Faltan secretos");
+    console.log("❌ Faltan secretos, no se puede probar Telegram");
     return;
   }
+  
+  console.log("📤 Enviando mensaje de prueba a Telegram...");
   
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -19,27 +22,23 @@ async function testTelegram() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         chat_id: chatId,
-        text: "🧪 ¡Prueba exitosa desde GitHub Actions!",
+        text: "🧪 ¡Prueba exitosa desde GitHub Actions! 🎉",
         parse_mode: 'HTML'
       })
     });
     
     const data = await res.json();
-    console.log("Respuesta:", data);
     
     if (res.ok) {
-      console.log("✅ Mensaje enviado correctamente");
+      console.log("✅ Mensaje enviado correctamente a Telegram");
+      console.log("📨 Respuesta:", JSON.stringify(data, null, 2));
     } else {
-      console.log("❌ Error:", data.description);
+      console.log("❌ Error de Telegram:", data.description || data);
     }
   } catch (err) {
     console.log("❌ Error de red:", err.message);
   }
 }
 
-// test-secrets.js
-console.log("🔍 Verificando secretos...");
-console.log("TELEGRAM_BOT_TOKEN:", process.env.TELEGRAM_BOT_TOKEN ? "✅ Presente" : "❌ Ausente");
-console.log("TELEGRAM_CHAT_ID:", process.env.TELEGRAM_CHAT_ID ? "✅ Presente" : "❌ Ausente");
-
+// Ejecutar la prueba
 testTelegram();
