@@ -241,14 +241,12 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS DE BINANCE (CON PROXIES MEJORADOS)
-// ============================================================
-//  OBTENER DATOS DE BINANCE (CON PROXIES MEJORADOS)
+//  OBTENER DATOS (PROXY + COINGECKO COMO RESPALDO)
 // ============================================================
 async function getKlines(symbol, interval, limit) {
   const binanceUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
 
-  // Lista de proxies (más confiables)
+  // ====== INTENTO 1: PROXIES ======
   const proxies = [
     {
       name: 'corsproxy.io',
@@ -270,7 +268,6 @@ async function getKlines(symbol, interval, limit) {
 
   let lastError = null;
 
-  // Intentar con cada proxy (con reintentos)
   for (let attempt = 0; attempt < 3; attempt++) {
     for (const proxy of proxies) {
       try {
@@ -315,11 +312,61 @@ async function getKlines(symbol, interval, limit) {
         await new Promise(r => setTimeout(r, 500));
       }
     }
-    // Esperar más entre intentos
     if (attempt < 2) await new Promise(r => setTimeout(r, 2000));
   }
 
-  // Si todo falla, intentar directamente (por si acaso)
+  // ====== INTENTO 2: COINGECKO (RESPALDO) ======
+  console.log(`🔄 ${symbol} usando CoinGecko como respaldo...`);
+  
+  const symbolMap = {
+    'BTCUSDT': 'bitcoin',
+    'ETHUSDT': 'ethereum',
+    'BNBUSDT': 'binancecoin',
+    'SOLUSDT': 'solana',
+    'XRPUSDT': 'ripple',
+    'ADAUSDT': 'cardano',
+    'LINKUSDT': 'chainlink',
+    'LTCUSDT': 'litecoin',
+    'DOTUSDT': 'polkadot',
+    'AVAXUSDT': 'avalanche-2',
+    'DOGEUSDT': 'dogecoin',
+    'PEPEUSDT': 'pepe',
+    'ENAUSDT': 'ethena',
+    'TLMUSDT': 'alien-worlds',
+    'POLUSDT': 'polygon',
+    'HBARUSDT': 'hedera-hashgraph',
+    'CHZUSDT': 'chiliz',
+    'SHIBUSDT': 'shiba-inu',
+    'TWTUSDT': 'trust-wallet-token'
+  };
+
+  const coinId = symbolMap[symbol];
+  if (coinId) {
+    try {
+      const geckoUrl = `https://api.coingecko.com/api/v3/coins/${coinId}/market_chart?vs_currency=usd&days=30`;
+      const res = await fetch(geckoUrl, {
+        headers: { 'User-Agent': 'Mozilla/5.0' }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.prices && data.prices.length > 0) {
+          const prices = data.prices.map(p => p[1]);
+          console.log(`✅ ${symbol} obtenido desde CoinGecko (${prices.length} velas)`);
+          return {
+            closes: prices,
+            highs: prices.map(p => p * 1.01),
+            lows: prices.map(p => p * 0.99),
+            volumes: prices.map(() => 0)
+          };
+        }
+      }
+    } catch (err) {
+      console.log(`⚠️ CoinGecko falló: ${err.message}`);
+    }
+  }
+
+  // ====== INTENTO 3: DIRECTO ======
   try {
     console.log(`🔄 ${symbol} intento directo...`);
     const res = await fetch(binanceUrl, {
@@ -341,9 +388,8 @@ async function getKlines(symbol, interval, limit) {
     console.log(`⚠️ Directo falló: ${err.message}`);
   }
 
-  throw lastError || new Error(`Todos los proxies fallaron para ${symbol}`);
+  throw lastError || new Error(`No se pudo obtener ${symbol}`);
 }
-
 
 // ============================================================
 //  ENVÍO A TELEGRAM
