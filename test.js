@@ -1,19 +1,16 @@
-// test.js - Prueba completa de secretos y Telegram
-console.log("🔍 VERIFICANDO SECRETOS...");
-console.log("TELEGRAM_BOT_TOKEN:", process.env.TELEGRAM_BOT_TOKEN ? "✅ Presente" : "❌ Ausente");
-console.log("TELEGRAM_CHAT_ID:", process.env.TELEGRAM_CHAT_ID ? "✅ Presente" : "❌ Ausente");
-console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-
+// test.js - Prueba de Telegram
 async function testTelegram() {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
   
+  console.log("🔍 Probando Telegram...");
+  console.log("Token:", token ? "✅" : "❌");
+  console.log("Chat ID:", chatId ? "✅" : "❌");
+  
   if (!token || !chatId) {
-    console.log("❌ Faltan secretos, no se puede probar Telegram");
+    console.log("❌ Faltan secretos");
     return;
   }
-  
-  console.log("📤 Enviando mensaje de prueba a Telegram...");
   
   try {
     const url = `https://api.telegram.org/bot${token}/sendMessage`;
@@ -30,15 +27,14 @@ async function testTelegram() {
     const data = await res.json();
     
     if (res.ok) {
-      console.log("✅ Mensaje enviado correctamente a Telegram");
+      console.log("✅ Mensaje enviado correctamente");
       console.log("📨 Respuesta:", JSON.stringify(data, null, 2));
     } else {
-      console.log("❌ Error de Telegram:", data.description || data);
+      console.log("❌ Error:", data.description);
     }
   } catch (err) {
     console.log("❌ Error de red:", err.message);
   }
 }
 
-// Ejecutar la prueba
 testTelegram();
