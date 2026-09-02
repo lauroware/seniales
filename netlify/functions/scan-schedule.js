@@ -198,38 +198,56 @@ function calculateRisk(price, atr, signal) {
 // ============================================================
 //  OBTENER DATOS DE BINANCE (CON PROXY PARA EVITAR BLOQUEOS)
 // ============================================================
+// ============================================================
+//  OBTENER DATOS DE BINANCE (VERSIÓN ROBUSTA)
+// ============================================================
 async function getKlines(symbol, interval, limit, retries = 2) {
-  // Usamos un proxy gratuito para saltar bloqueos geográficos
-  const proxyUrl = 'https://corsproxy.io/?';
-  const binanceUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
-  const url = proxyUrl + encodeURIComponent(binanceUrl);
+  // Usamos solo el endpoint principal (más fiable) y uno alternativo por si acaso
+  const endpoints = [
+    'https://api.binance.com',
+    'https://api1.binance.com',
+    'https://api2.binance.com',
+    'https://api3.binance.com'
+  ];
 
   let lastError = null;
 
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    try {
-      console.log(`🔄 ${symbol} intento ${attempt+1}...`);
+  for (let attempt = 0; attempt < endpoints.length; attempt++) {
+    const baseUrl = endpoints[attempt];
+    const url = `${baseUrl}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
 
+    try {
+      console.log(`🔄 Intentando ${symbol} con ${baseUrl} (intento ${attempt+1})...`);
+
+      // Control de timeout manual (compatible con Node.js 14+)
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 segundos
 
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br'
         },
         signal: controller.signal
       });
 
-      clearTimeout(timeoutId);
+      clearTimeout(timeoutId); // limpiar timeout
+
+      // Si es 451 (bloqueo geográfico), probamos el siguiente endpoint
+      if (res.status === 451) {
+        console.log(`📍 ${symbol}: Endpoint ${baseUrl} bloqueado (451), probando siguiente...`);
+        continue;
+      }
 
       if (!res.ok) {
         const errorText = await res.text();
-        throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 80)}`);
+        throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 100)}`);
       }
 
       const data = await res.json();
       if (!Array.isArray(data) || data.length === 0) {
-        throw new Error('Datos vacíos');
+        throw new Error('respuesta inválida o vacía');
       }
 
       return {
@@ -241,14 +259,14 @@ async function getKlines(symbol, interval, limit, retries = 2) {
 
     } catch (err) {
       lastError = err;
-      console.log(`⚠️ ${symbol} falló (intento ${attempt+1}): ${err.message}`);
-      if (attempt < retries) {
-        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
-      }
+      console.log(`⚠️ ${symbol} con ${baseUrl}: ${err.message}`);
+      // Espera progresiva antes del siguiente intento
+      await new Promise(r => setTimeout(r, 500 * (attempt + 1)));
     }
   }
 
-  throw lastError || new Error(`No se pudo obtener ${symbol}`);
+  // Si todos fallaron, lanzamos el último error
+  throw lastError || new Error(`Todos los endpoints fallaron para ${symbol}`);
 }
 
 // ============================================================
