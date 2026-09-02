@@ -9,10 +9,7 @@ const UMBRAL_CAJA1 = 2;
 const UMBRAL_CAJA2 = 4;
 
 const COINS_ACTIVE = [
-  "BTCUSDT", "ETHUSDT", "BNBUSDT",
-  "SOLUSDT", "XRPUSDT", "ADAUSDT", "LINKUSDT", "LTCUSDT", "DOTUSDT", "AVAXUSDT",
-  "DOGEUSDT", "PEPEUSDT", "ENAUSDT", "TLMUSDT", "POLUSDT", "HBARUSDT",
-  "CHZUSDT", "SHIBUSDT", "TWTUSDT"
+  "BTCUSDT", "ETHUSDT",
 ];
 
 // ============================================================
