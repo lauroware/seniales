@@ -8,13 +8,13 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const UMBRAL_CAJA1 = 2;
 const UMBRAL_CAJA2 = 4;
 
-// Lista de monedas (solo dos para prueba)
+// Lista de monedas (solo las principales para que sea rápido)
 const COINS_ACTIVE = [
-  "BTCUSDT", "ETHUSDT"
+  "BTCUSDT", "ETHUSDT", "SOLUSDT", "BNBUSDT", "XRPUSDT"
 ];
 
 // ============================================================
-//  FUNCIONES DE INDICADORES
+//  FUNCIONES DE INDICADORES (idénticas a tu web)
 // ============================================================
 function calculateEMA(data, period) {
   if (!data || data.length < period) return null;
@@ -196,41 +196,35 @@ function calculateRisk(price, atr, signal) {
 }
 
 // ============================================================
-//  OBTENER DATOS DE BINANCE CON REINTENTOS Y TIMEOUT
+//  OBTENER DATOS DE BINANCE (CON PROXY PARA EVITAR BLOQUEOS)
 // ============================================================
-async function getKlines(symbol, interval, limit) {
-  // Lista de endpoints públicos de Binance
-  const endpoints = [
-    'https://api.binance.com',
-    'https://api1.binance.com',
-    'https://api2.binance.com',
-    'https://api3.binance.com'
-  ];
+async function getKlines(symbol, interval, limit, retries = 2) {
+  // Usamos un proxy gratuito para saltar bloqueos geográficos
+  const proxyUrl = 'https://corsproxy.io/?';
+  const binanceUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  const url = proxyUrl + encodeURIComponent(binanceUrl);
 
-  // Mezclamos para no siempre empezar por el mismo
-  const shuffled = endpoints.sort(() => Math.random() - 0.5);
+  let lastError = null;
 
-  for (const baseUrl of shuffled) {
-    const url = `${baseUrl}/api/v3/klines?symbol=${symbol}&interval=${interval}&limit=${limit}`;
+  for (let attempt = 0; attempt <= retries; attempt++) {
     try {
-      // Timeout de 8 segundos con AbortController
+      console.log(`🔄 ${symbol} intento ${attempt+1}...`);
+
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 8000);
+      const timeoutId = setTimeout(() => controller.abort(), 8000);
 
       const res = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         },
         signal: controller.signal
       });
-      clearTimeout(timeout);
+
+      clearTimeout(timeoutId);
 
       if (!res.ok) {
-        if (res.status === 451) {
-          console.log(`⛔ ${symbol} bloqueado por geolocalización en ${baseUrl}, probando otro...`);
-          continue;
-        }
-        throw new Error(`HTTP ${res.status}`);
+        const errorText = await res.text();
+        throw new Error(`HTTP ${res.status}: ${errorText.substring(0, 80)}`);
       }
 
       const data = await res.json();
@@ -244,14 +238,17 @@ async function getKlines(symbol, interval, limit) {
         lows: data.map(c => parseFloat(c[3])),
         volumes: data.map(c => parseFloat(c[5]))
       };
+
     } catch (err) {
-      console.log(`⚠️ ${symbol} con ${baseUrl}: ${err.message}`);
-      // Esperamos un poco antes de intentar con otro
-      await new Promise(r => setTimeout(r, 300));
+      lastError = err;
+      console.log(`⚠️ ${symbol} falló (intento ${attempt+1}): ${err.message}`);
+      if (attempt < retries) {
+        await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+      }
     }
   }
 
-  throw new Error(`Todos los endpoints fallaron para ${symbol}`);
+  throw lastError || new Error(`No se pudo obtener ${symbol}`);
 }
 
 // ============================================================
@@ -259,8 +256,8 @@ async function getKlines(symbol, interval, limit) {
 // ============================================================
 async function sendTelegram(message) {
   if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) {
-    console.error("❌ Faltan variables de entorno TELEGRAM_BOT_TOKEN o TELEGRAM_CHAT_ID");
-    return false;
+    console.log("⚠️ Faltan variables de entorno");
+    return;
   }
   const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
   try {
@@ -275,137 +272,139 @@ async function sendTelegram(message) {
     });
     if (!res.ok) {
       const errorText = await res.text();
-      console.error(`❌ Error de Telegram: ${res.status} - ${errorText}`);
-      return false;
+      console.error(`❌ Error Telegram: ${res.status} - ${errorText}`);
     }
-    console.log("✅ Mensaje enviado a Telegram correctamente.");
-    return true;
   } catch (e) {
     console.error("❌ Error enviando a Telegram:", e.message);
-    return false;
   }
 }
 
 // ============================================================
-//  FUNCIÓN PRINCIPAL
+//  FUNCIÓN PRINCIPAL (HANDLER)
 // ============================================================
 exports.handler = async (event, context) => {
-  console.log("🔍 Inicio del escaneo con 2 monedas de prueba...");
+  try {
+    console.log("🔍 Iniciando escaneo con proxy...");
+    const allSignals = [];
+    const errors = [];
 
-  // Enviar mensaje de inicio (para saber que la función se ejecutó)
-  await sendTelegram("⏳ Iniciando escaneo de señales...");
-
-  const allSignals = [];
-  const errors = [];
-
-  for (let i = 0; i < COINS_ACTIVE.length; i++) {
-    const symbol = COINS_ACTIVE[i];
-    try {
-      console.log(`📊 Procesando ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
-      
-      // Pequeña pausa entre peticiones
-      if (i > 0) await new Promise(r => setTimeout(r, 500));
-      
-      // Obtener datos horarios y semanales
-      const hourly = await getKlines(symbol, '1h', 500);
-      const weekly = await getKlines(symbol, '1w', 300);
-      
-      const price = hourly.closes[hourly.closes.length - 1];
-      const b1 = analyzeBox1(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
-      const b2 = analyzeBox2Weighted(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
-      const b3 = analyzeBox3(weekly.closes, weekly.highs, weekly.lows, weekly.volumes);
-      
-      const ath = Math.max(...weekly.highs);
-      const pctFromAth = (price - ath) / ath * 100;
-      
-      let risk = null;
-      if (b1.signal !== "HOLD" && b1.atr !== null) {
-        risk = calculateRisk(price, b1.atr, b1.signal);
+    for (let i = 0; i < COINS_ACTIVE.length; i++) {
+      const symbol = COINS_ACTIVE[i];
+      try {
+        console.log(`📊 ${symbol} (${i+1}/${COINS_ACTIVE.length})...`);
+        
+        if (i > 0) await new Promise(r => setTimeout(r, 300));
+        
+        const hourly = await getKlines(symbol, '1h', 500);
+        const weekly = await getKlines(symbol, '1w', 300);
+        
+        const price = hourly.closes[hourly.closes.length - 1];
+        const b1 = analyzeBox1(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
+        const b2 = analyzeBox2Weighted(hourly.closes, hourly.highs, hourly.lows, hourly.volumes);
+        const b3 = analyzeBox3(weekly.closes, weekly.highs, weekly.lows, weekly.volumes);
+        
+        const ath = Math.max(...weekly.highs);
+        const pctFromAth = (price - ath) / ath * 100;
+        
+        let risk = null;
+        if (b1.signal !== "HOLD" && b1.atr !== null) {
+          risk = calculateRisk(price, b1.atr, b1.signal);
+        }
+        
+        let score = 0;
+        const reasons = [];
+        
+        if (b1.signal === 'BUY') { score += 3; reasons.push('C1 alcista (+3)'); }
+        else if (b1.signal === 'SELL') { score -= 3; reasons.push('C1 bajista (-3)'); }
+        
+        if (b2.signal === 'BUY') { score += 4; reasons.push('C2 alcista (+4)'); }
+        else if (b2.signal === 'SELL') { score -= 4; reasons.push('C2 bajista (-4)'); }
+        
+        if (b3.signal === 'BUY') { score += 2; reasons.push('C3 alcista (+2)'); }
+        else if (b3.signal === 'SELL') { score -= 2; reasons.push('C3 bajista (-2)'); }
+        
+        if (risk && risk.ratio >= 1.5) {
+          score += 0.5;
+          reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
+        }
+        
+        const signalDir = b1.signal !== "HOLD" ? b1.signal : (b2.signal !== "HOLD" ? b2.signal : b3.signal);
+        
+        allSignals.push({
+          symbol: symbol.replace('USDT', '/USDT'),
+          price,
+          b1,
+          b2,
+          b3,
+          risk,
+          score,
+          reasons,
+          pctFromAth,
+          signalDir
+        });
+        
+        console.log(`✅ ${symbol} -> Score: ${score.toFixed(1)}, Señal: ${signalDir}`);
+        
+      } catch (err) {
+        console.error(`❌ ${symbol}: ${err.message}`);
+        errors.push(`${symbol}: ${err.message}`);
       }
-      
-      // Calcular score
-      let score = 0;
-      const reasons = [];
-      
-      if (b1.signal === 'BUY') { score += 3; reasons.push('C1 alcista (+3)'); }
-      else if (b1.signal === 'SELL') { score -= 3; reasons.push('C1 bajista (-3)'); }
-      
-      if (b2.signal === 'BUY') { score += 4; reasons.push('C2 alcista (+4)'); }
-      else if (b2.signal === 'SELL') { score -= 4; reasons.push('C2 bajista (-4)'); }
-      
-      if (b3.signal === 'BUY') { score += 2; reasons.push('C3 alcista (+2)'); }
-      else if (b3.signal === 'SELL') { score -= 2; reasons.push('C3 bajista (-2)'); }
-      
-      if (risk && risk.ratio >= 1.5) {
-        score += 0.5;
-        reasons.push(`R:R excelente (${risk.ratio.toFixed(2)}) +0.5`);
-      }
-      
-      const signalDir = b1.signal !== "HOLD" ? b1.signal : (b2.signal !== "HOLD" ? b2.signal : b3.signal);
-      
-      allSignals.push({
-        symbol: symbol.replace('USDT', '/USDT'),
-        price,
-        b1,
-        b2,
-        b3,
-        risk,
-        score,
-        reasons,
-        pctFromAth,
-        signalDir
+    }
+
+    // Ordenar y tomar top 3
+    allSignals.sort((a, b) => b.score - a.score);
+    const top3 = allSignals.slice(0, 3);
+
+    console.log(`📈 Top 3: ${top3.map(s => s.symbol).join(', ')}`);
+
+    // Construir mensaje
+    let message = `<b>📊 TOP 3 OPORTUNIDADES</b>\n`;
+    message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n`;
+    message += `⚙️ Umbrales: C1=${UMBRAL_CAJA1}, C2=${UMBRAL_CAJA2}\n\n`;
+
+    if (top3.length === 0) {
+      message += `⚪ No se encontraron oportunidades destacadas.`;
+    } else {
+      top3.forEach((item, idx) => {
+        const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
+        const color = item.signalDir === 'BUY' ? '🟢' : item.signalDir === 'SELL' ? '🔴' : '⚪';
+        
+        message += `${emoji} <b>${item.symbol}</b> ${color} ${item.signalDir || 'HOLD'} · Score: ${item.score.toFixed(1)}\n`;
+        message += `💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}`;
+        if (item.b1.rsi !== null) message += ` 📊 RSI: ${item.b1.rsi.toFixed(1)}`;
+        if (item.b1.atrPercent !== null) message += ` ⚡ ATR: ${item.b1.atrPercent.toFixed(1)}%`;
+        if (item.risk) {
+          message += ` 📈 R:R: ${item.risk.ratio.toFixed(2)}`;
+          message += ` 🛑 SL: $${item.risk.stop.toFixed(item.price < 1 ? 6 : 2)}`;
+          message += ` 🎯 TP1: $${item.risk.tp1.toFixed(item.price < 1 ? 6 : 2)}`;
+        }
+        if (item.reasons.length > 0) {
+          message += `\n🧠 ${item.reasons.join(' · ')}`;
+        }
+        message += `\n📉 Desde ATH: ${item.pctFromAth.toFixed(1)}%\n\n`;
       });
-      
-      console.log(`✅ ${symbol} -> Score: ${score.toFixed(1)}, Señal: ${signalDir}`);
-      
-    } catch (err) {
-      console.error(`❌ Error en ${symbol}: ${err.message}`);
-      errors.push(`${symbol}: ${err.message}`);
     }
-  }
 
-  // Ordenar por score
-  allSignals.sort((a, b) => b.score - a.score);
-  const top3 = allSignals.slice(0, 3);
-
-  // Construir mensaje
-  let message = `<b>📊 TOP OPORTUNIDADES</b>\n`;
-  message += `🕒 ${new Date().toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}\n`;
-  message += `⚙️ Umbrales: C1=${UMBRAL_CAJA1}, C2=${UMBRAL_CAJA2}\n\n`;
-
-  if (top3.length === 0) {
-    message += `⚪ No se encontraron oportunidades destacadas.\n`;
     if (errors.length > 0) {
-      message += `\n⚠️ Fallaron: ${errors.join('; ')}`;
+      message += `\n⚠️ Algunos símbolos fallaron:\n`;
+      errors.slice(0, 5).forEach(e => message += `- ${e}\n`);
+      if (errors.length > 5) message += `- ... y ${errors.length - 5} más.\n`;
     }
-  } else {
-    top3.forEach((item, idx) => {
-      const emoji = idx === 0 ? '🥇' : idx === 1 ? '🥈' : '🥉';
-      const color = item.signalDir === 'BUY' ? '🟢' : item.signalDir === 'SELL' ? '🔴' : '⚪';
-      
-      message += `${emoji} <b>${item.symbol}</b> ${color} ${item.signalDir || 'HOLD'} · Score: ${item.score.toFixed(1)}\n`;
-      message += `💰 Precio: $${item.price.toFixed(item.price < 1 ? 6 : 2)}`;
-      if (item.b1.rsi !== null) message += ` 📊 RSI: ${item.b1.rsi.toFixed(1)}`;
-      if (item.b1.atrPercent !== null) message += ` ⚡ ATR: ${item.b1.atrPercent.toFixed(1)}%`;
-      if (item.risk) {
-        message += ` 📈 R:R: ${item.risk.ratio.toFixed(2)}`;
-        message += ` 🛑 SL: $${item.risk.stop.toFixed(item.price < 1 ? 6 : 2)}`;
-        message += ` 🎯 TP1: $${item.risk.tp1.toFixed(item.price < 1 ? 6 : 2)}`;
-      }
-      if (item.reasons.length > 0) {
-        message += `\n🧠 ${item.reasons.join(' · ')}`;
-      }
-      message += `\n📉 Desde ATH: ${item.pctFromAth.toFixed(1)}%\n\n`;
-    });
+
+    await sendTelegram(message);
+    console.log("✅ Mensaje enviado.");
+
+    return {
+      statusCode: 200,
+      body: JSON.stringify({ 
+        message: `Escaneo completado. ${top3.length} oportunidades, ${errors.length} errores.` 
+      })
+    };
+  } catch (error) {
+    console.error("💥 Error fatal:", error);
+    return {
+      statusCode: 500,
+      body: JSON.stringify({ error: error.message })
+    };
   }
-
-  // Enviar el mensaje final
-  await sendTelegram(message);
-
-  return {
-    statusCode: 200,
-    body: JSON.stringify({ 
-      message: `Escaneo completado. ${top3.length} oportunidades, ${errors.length} errores.` 
-    })
-  };
 };
