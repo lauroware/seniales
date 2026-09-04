@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calculadora de Trading · Ganancia / Pérdida</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            background: #0d1117;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            color: #c9d1d9;
+            padding: 20px;
+        }
+        .container {
+            max-width: 560px;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .card {
+            background: #161b22;
+            padding: 2rem 1.8rem;
+            border-radius: 28px;
+            border: 1px solid #30363d;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.8);
+            width: 100%;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.2rem;
+        }
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #f0f6fc;
+        }
+        .header span {
+            font-size: 0.7rem;
+            color: #8b949e;
+            background: #0d1117;
+            padding: 4px 12px;
+            border-radius: 30px;
+            border: 1px solid #30363d;
+        }
+
+        .input-group {
+            margin-bottom: 1rem;
+        }
+        .input-group label {
+            display: block;
+            font-size: 0.75rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #8b949e;
+            margin-bottom: 5px;
+        }
+        .input-group .input-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .input-group input {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 16px;
+            padding: 12px 16px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #f0f6fc;
+            width: 100%;
+            outline: none;
+            transition: border 0.3s;
+            font-family: 'Courier New', monospace;
+        }
+        .input-group input:focus {
+            border-color: #58a6ff;
+        }
+        .input-group input::placeholder {
+            color: #484f58;
+            font-weight: 400;
+            font-size: 0.9rem;
+        }
+        .input-group .currency {
+            color: #8b949e;
+            font-weight: 700;
+            font-size: 1rem;
+            min-width: 30px;
+        }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin: 4px 0 12px 0;
+            font-size: 0.8rem;
+            color: #8b949e;
+            cursor: pointer;
+            flex-wrap: wrap;
+        }
+        .checkbox-row input[type="checkbox"] {
+            accent-color: #58a6ff;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        .comision-box {
+            background: #0a0e14;
+            border: 1px solid #21262d;
+            border-radius: 14px;
+            padding: 10px 14px;
+            margin: 6px 0 14px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .comision-box label {
+            font-size: 0.7rem;
+            color: #8b949e;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .comision-box input {
+            background: #0d1117;
+            border: 1px solid #30363d;
+            border-radius: 30px;
+            padding: 6px 12px;
+            width: 70px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #f0f6fc;
+            text-align: center;
+            outline: none;
+        }
+        .comision-box input:focus {
+            border-color: #58a6ff;
+        }
+
+        .result-box {
+            background: #0d1117;
+            border-radius: 16px;
+            border: 1px solid #21262d;
+            padding: 16px 18px;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        .result-box .label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #484f58;
+        }
+        .result-box .value {
+            font-size: 2rem;
+            font-weight: 700;
+            font-family: 'Courier New', monospace;
+            margin: 4px 0 2px;
+        }
+        .result-box .sub {
+            font-size: 0.75rem;
+            color: #8b949e;
+            margin-top: 2px;
+        }
+        .result-box .badge {
+            display: inline-block;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 2px 12px;
+            border-radius: 30px;
+            margin-top: 6px;
+        }
+        .badge.ganancia {
+            background: #0d1f14;
+            color: #3fb950;
+            border: 1px solid #238636;
+        }
+        .badge.perdida {
+            background: #1f0d0d;
+            color: #f85149;
+            border: 1px solid #da3633;
+        }
+        .badge.neutral {
+            background: #0d1117;
+            color: #8b949e;
+            border: 1px solid #30363d;
+        }
+
+        .grid-2col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-top: 6px;
+        }
+        .grid-2col .result-box {
+            margin-top: 0;
+        }
+
+        .footer-note {
+            font-size: 0.6rem;
+            color: #484f58;
+            text-align: center;
+            margin-top: 12px;
+            border-top: 1px solid #21262d;
+            padding-top: 12px;
+            line-height: 1.5;
+        }
+
+        .btn-reset {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            padding: 8px 18px;
+            border-radius: 30px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            margin-top: 4px;
+        }
+        .btn-reset:hover {
+            border-color: #58a6ff;
+            color: #f0f6fc;
+        }
+
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .cantidad-hint {
+            font-size: 0.6rem;
+            color: #484f58;
+            margin-top: 4px;
+            margin-left: 4px;
+        }
+
+        @media (max-width: 480px) {
+            .card {
+                padding: 1.5rem 1rem;
+            }
+            .grid-2col {
+                grid-template-columns: 1fr;
+            }
+            .result-box .value {
+                font-size: 1.6rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="card">
+            <div class="header">
+                <h1>🧮 Calculadora de Trading</h1>
+                <span>Spot / Futuros</span>
+            </div>
+
+            <!-- PRECIO DE COMPRA -->
+            <div class="input-group">
+                <label>💰 Precio de Compra</label>
+                <div class="input-row">
+                    <span class="currency">$</span>
+                    <input type="number" id="precioCompra" placeholder="Ej: 104.30" step="any" min="0">
+                </div>
+            </div>
+
+            <!-- PRECIO DE VENTA -->
+            <div class="input-group">
+                <label>📈 Precio de Venta <span style="font-weight:400;color:#484f58;font-size:0.65rem;text-transform:none;">(opcional — si lo dejás vacío, calculamos el mínimo)</span></label>
+                <div class="input-row">
+                    <span class="currency">$</span>
+                    <input type="number" id="precioVenta" placeholder="Ej: 106.90" step="any" min="0">
+                </div>
+            </div>
+
+            <!-- CANTIDAD DE CRIPTOS -->
+            <div class="input-group">
+                <label>📦 Cantidad de criptos <span style="font-weight:400;color:#484f58;font-size:0.65rem;text-transform:none;">(unidades compradas)</span></label>
+                <div class="input-row">
+                    <span class="currency">🪙</span>
+                    <input type="number" id="cantidad" placeholder="Ej: 1.918" step="any" min="0">
+                </div>
+                <div class="cantidad-hint">💡 Si no sabés las unidades, poné el monto invertido abajo y se calcula automáticamente.</div>
+            </div>
+
+            <!-- MONTO INVERTIDO (alternativa a cantidad) -->
+            <div class="input-group">
+                <label>💵 Monto invertido (USDT) <span style="font-weight:400;color:#484f58;font-size:0.65rem;text-transform:none;">(opcional — si ponés cantidad, no hace falta)</span></label>
+                <div class="input-row">
+                    <span class="currency">$</span>
+                    <input type="number" id="montoInvertido" placeholder="Ej: 200" step="any" min="0">
+                </div>
+                <div class="cantidad-hint">📌 Si ponés el monto, la cantidad se calcula como <strong>monto / precio de compra</strong>.</div>
+            </div>
+
+            <!-- COMISIONES -->
+            <div class="comision-box">
+                <label>
+                    <span>📊 Comisión (por lado)</span>
+                </label>
+                <div style="display:flex; align-items:center; gap:6px;">
+                    <input type="number" id="comision" value="0.10" step="0.01" min="0" max="5">
+                    <span style="color:#8b949e; font-size:0.75rem;">%</span>
+                </div>
+            </div>
+
+            <!-- INCLUIR COMISIÓN EN EL CÁLCULO DEL MÍNIMO -->
+            <div class="checkbox-row">
+                <input type="checkbox" id="incluirComision" checked>
+                <label for="incluirComision">Incluir comisiones en el precio mínimo de venta</label>
+            </div>
+
+            <!-- BOTÓN CALCULAR -->
+            <button onclick="calcular()" style="background:#1f6feb; color:#fff; border:none; padding:14px 0; border-radius:40px; font-weight:700; font-size:1rem; cursor:pointer; width:100%; transition:background 0.2s; margin-top:6px;">
+                📊 Calcular
+            </button>
+
+            <!-- RESULTADOS -->
+            <div id="resultados" style="margin-top:18px;">
+
+                <!-- Resultado principal: Precio mínimo de venta -->
+                <div class="result-box" id="minimoVentaBox">
+                    <div class="label">🎯 Precio mínimo de venta (para tener ganancia)</div>
+                    <div class="value" id="precioMinimo">$ --</div>
+                    <div class="sub" id="minimoSub">Completá el precio de compra y presioná Calcular</div>
+                </div>
+
+                <!-- Resultados secundarios: % ganancia y beneficio -->
+                <div class="grid-2col">
+                    <div class="result-box">
+                        <div class="label">📊 Ganancia / Pérdida</div>
+                        <div class="value" id="porcentaje">-- %</div>
+                        <div id="badgePorcentaje" class="badge neutral">Esperando datos</div>
+                    </div>
+                    <div class="result-box">
+                        <div class="label">💰 Beneficio Total</div>
+                        <div class="value" id="beneficioTotal">$ --</div>
+                        <div class="sub" id="beneficioSub">Ingresá precio de venta y cantidad</div>
+                    </div>
+                </div>
+
+                <!-- NUEVO: Resumen de posición -->
+                <div class="result-box" id="resumenPosicion" style="margin-top: 0;">
+                    <div class="label">📋 Resumen de la posición</div>
+                    <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px; font-size:0.85rem;">
+                        <div><span style="color:#8b949e;">Compra total:</span> <strong id="compraTotal">$ --</strong></div>
+                        <div><span style="color:#8b949e;">Venta total:</span> <strong id="ventaTotal">$ --</strong></div>
+                        <div><span style="color:#8b949e;">Cantidad:</span> <strong id="cantidadMostrada">--</strong></div>
+                        <div><span style="color:#8b949e;">Comisiones pagadas:</span> <strong id="comisionesPagadas">$ --</strong></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTÓN RESET Y NOTA -->
+            <div class="flex-between" style="margin-top:12px;">
+                <button class="btn-reset" onclick="resetear()">↺ Reiniciar</button>
+                <span style="font-size:0.55rem;color:#484f58;">Calculadora con comisiones incluidas</span>
+            </div>
+
+            <div class="footer-note">
+                ⚠️ El precio mínimo de venta incluye las comisiones de <strong>entrada y salida</strong> (0.1% por lado por defecto).<br>
+                El <strong>beneficio total</strong> se calcula con la cantidad de criptos o el monto invertido.
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function calcular() {
+            const compra = parseFloat(document.getElementById('precioCompra').value);
+            const ventaInput = document.getElementById('precioVenta').value;
+            const venta = ventaInput !== '' ? parseFloat(ventaInput) : null;
+            const cantidadInput = document.getElementById('cantidad').value;
+            const montoInput = document.getElementById('montoInvertido').value;
+            const comisionPorLado = parseFloat(document.getElementById('comision').value) || 0;
+            const incluirComision = document.getElementById('incluirComision').checked;
+
+            // Determinar cantidad
+            let cantidad = null;
+            if (cantidadInput !== '') {
+                cantidad = parseFloat(cantidadInput);
+            } else if (montoInput !== '' && compra > 0) {
+                cantidad = parseFloat(montoInput) / compra;
+                // Redondear a 8 decimales
+                cantidad = Math.round(cantidad * 1e8) / 1e8;
+            }
+
+            const precioMinimoEl = document.getElementById('precioMinimo');
+            const minimoSubEl = document.getElementById('minimoSub');
+            const porcentajeEl = document.getElementById('porcentaje');
+            const badgeEl = document.getElementById('badgePorcentaje');
+            const beneficioTotalEl = document.getElementById('beneficioTotal');
+            const beneficioSubEl = document.getElementById('beneficioSub');
+            const compraTotalEl = document.getElementById('compraTotal');
+            const ventaTotalEl = document.getElementById('ventaTotal');
+            const cantidadMostradaEl = document.getElementById('cantidadMostrada');
+            const comisionesPagadasEl = document.getElementById('comisionesPagadas');
+
+            // Limpiar si no hay compra
+            if (!compra || compra <= 0) {
+                precioMinimoEl.textContent = '$ --';
+                minimoSubEl.textContent = '⚠️ Ingresá un precio de compra válido.';
+                porcentajeEl.textContent = '-- %';
+                badgeEl.textContent = 'Esperando datos';
+                badgeEl.className = 'badge neutral';
+                beneficioTotalEl.textContent = '$ --';
+                beneficioSubEl.textContent = 'Ingresá precio de venta y cantidad';
+                compraTotalEl.textContent = '$ --';
+                ventaTotalEl.textContent = '$ --';
+                cantidadMostradaEl.textContent = '--';
+                comisionesPagadasEl.textContent = '$ --';
+                return;
+            }
+
+            // Calcular comisión total (entrada + salida)
+            const comisionTotal = incluirComision ? (comisionPorLado / 100) * 2 : 0;
+
+            // PRECIO MÍNIMO DE VENTA
+            let precioMinimo = compra / (1 - comisionTotal);
+            precioMinimo = Math.ceil(precioMinimo * 1e8) / 1e8;
+
+            // Mostrar precio mínimo
+            const dec = precioMinimo < 1 ? 6 : precioMinimo < 100 ? 4 : 2;
+            precioMinimoEl.textContent = `$ ${precioMinimo.toFixed(dec)}`;
+            if (incluirComision) {
+                minimoSubEl.textContent = `📌 Incluye ${(comisionPorLado * 2).toFixed(2)}% de comisiones (${comisionPorLado.toFixed(2)}% por lado)`;
+            } else {
+                minimoSubEl.textContent = `📌 Sin comisiones (solo precio neto)`;
+            }
+
+            // Mostrar cantidad
+            if (cantidad !== null && cantidad > 0) {
+                const decCant = cantidad < 1 ? 6 : cantidad < 100 ? 4 : 2;
+                cantidadMostradaEl.textContent = `${cantidad.toFixed(decCant)}`;
+            } else {
+                cantidadMostradaEl.textContent = '⚠️ Sin cantidad';
+            }
+
+            // Calcular compra total
+            let compraTotal = 0;
+            if (cantidad !== null && cantidad > 0) {
+                compraTotal = cantidad * compra;
+                const decCT = compraTotal < 1 ? 6 : compraTotal < 100 ? 4 : 2;
+                compraTotalEl.textContent = `$ ${compraTotal.toFixed(decCT)}`;
+            } else {
+                compraTotalEl.textContent = '$ --';
+            }
+
+            // Si hay precio de venta y cantidad, calcular todo
+            if (venta && venta > 0 && cantidad !== null && cantidad > 0) {
+                // Comisiones pagadas
+                const comisionEntrada = compraTotal * (comisionPorLado / 100);
+                const ventaTotal = cantidad * venta;
+                const comisionSalida = ventaTotal * (comisionPorLado / 100);
+                const comisionesTotales = comisionEntrada + comisionSalida;
+
+                // Beneficio neto total
+                const netoTotal = ventaTotal - compraTotal - comisionesTotales;
+                const porcentaje = (netoTotal / compraTotal) * 100;
+
+                // Mostrar %
+                porcentajeEl.textContent = `${porcentaje >= 0 ? '+' : ''}${porcentaje.toFixed(2)} %`;
+
+                // Badge
+                if (porcentaje > 0.01) {
+                    badgeEl.textContent = '🟢 GANANCIA';
+                    badgeEl.className = 'badge ganancia';
+                } else if (porcentaje < -0.01) {
+                    badgeEl.textContent = '🔴 PÉRDIDA';
+                    badgeEl.className = 'badge perdida';
+                } else {
+                    badgeEl.textContent = '⚪ PUNTO MUERTO';
+                    badgeEl.className = 'badge neutral';
+                }
+
+                // Beneficio total
+                const decNet = netoTotal < 1 && netoTotal > 0 ? 6 : netoTotal < 100 ? 4 : 2;
+                beneficioTotalEl.textContent = `$ ${netoTotal.toFixed(decNet)}`;
+                beneficioSubEl.textContent = `${porcentaje >= 0 ? '✅ Ganancia' : '❌ Pérdida'} neta total`;
+
+                // Venta total
+                const decVT = ventaTotal < 1 ? 6 : ventaTotal < 100 ? 4 : 2;
+                ventaTotalEl.textContent = `$ ${ventaTotal.toFixed(decVT)}`;
+
+                // Comisiones pagadas
+                const decCP = comisionesTotales < 1 ? 6 : comisionesTotales < 100 ? 4 : 2;
+                comisionesPagadasEl.textContent = `$ ${comisionesTotales.toFixed(decCP)}`;
+
+                // Validación extra: si el precio de venta es menor al mínimo
+                if (venta < precioMinimo && incluirComision) {
+                    beneficioSubEl.textContent = `⚠️ Estás vendiendo por debajo del mínimo (${venta.toFixed(dec)} < ${precioMinimo.toFixed(dec)})`;
+                    beneficioSubEl.style.color = '#f0883e';
+                } else {
+                    beneficioSubEl.style.color = '#8b949e';
+                }
+
+            } else {
+                // Solo mostrar el mínimo, sin % ni beneficio
+                porcentajeEl.textContent = '-- %';
+                badgeEl.textContent = 'Ingresá precio de venta y cantidad';
+                badgeEl.className = 'badge neutral';
+                beneficioTotalEl.textContent = '$ --';
+                beneficioSubEl.textContent = 'Ingresá precio de venta y cantidad';
+                beneficioSubEl.style.color = '#8b949e';
+                ventaTotalEl.textContent = '$ --';
+                comisionesPagadasEl.textContent = '$ --';
+            }
+        }
+
+        function resetear() {
+            document.getElementById('precioCompra').value = '';
+            document.getElementById('precioVenta').value = '';
+            document.getElementById('cantidad').value = '';
+            document.getElementById('montoInvertido').value = '';
+            document.getElementById('comision').value = '0.10';
+            document.getElementById('incluirComision').checked = true;
+            calcular();
+        }
+
+        // Calcular automáticamente al escribir
+        document.getElementById('precioCompra').addEventListener('input', calcular);
+        document.getElementById('precioVenta').addEventListener('input', calcular);
+        document.getElementById('cantidad').addEventListener('input', calcular);
+        document.getElementById('montoInvertido').addEventListener('input', calcular);
+        document.getElementById('comision').addEventListener('input', calcular);
+        document.getElementById('incluirComision').addEventListener('change', calcular);
+
+        // Inicializar con ejemplo
+        window.onload = function() {
+            document.getElementById('precioCompra').value = '104.30';
+            document.getElementById('precioVenta').value = '106.90';
+            document.getElementById('cantidad').value = '1.918';
+            calcular();
+        };
+    </script>
+
+</body>
+</html>
