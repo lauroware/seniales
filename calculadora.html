@@ -324,6 +324,12 @@
             font-family: 'Courier New', monospace;
         }
 
+        .entry-hint {
+            font-size: 0.6rem;
+            color: #484f58;
+            margin: 2px 0 6px 4px;
+        }
+
         @media (max-width: 480px) {
             .card {
                 padding: 1.5rem 1rem;
@@ -355,15 +361,15 @@
 
             <!-- ENTRADAS ESCALONADAS (3 filas) -->
             <div class="input-group">
-                <label>📥 Entradas (Precio + Cantidad)</label>
+                <label>📥 Entradas (Precio + Monto invertido en USDT)</label>
                 <div class="entry-row">
                     <div class="col">
                         <span class="label-mini">#1</span>
                         <input type="number" id="precio1" placeholder="Precio" step="any" min="0">
                     </div>
                     <div class="col">
-                        <span class="label-mini">Cant</span>
-                        <input type="number" id="cant1" placeholder="Unidades" step="any" min="0">
+                        <span class="label-mini">Monto</span>
+                        <input type="number" id="monto1" placeholder="USDT" step="any" min="0">
                     </div>
                 </div>
                 <div class="entry-row">
@@ -372,8 +378,8 @@
                         <input type="number" id="precio2" placeholder="Precio" step="any" min="0">
                     </div>
                     <div class="col">
-                        <span class="label-mini">Cant</span>
-                        <input type="number" id="cant2" placeholder="Unidades" step="any" min="0">
+                        <span class="label-mini">Monto</span>
+                        <input type="number" id="monto2" placeholder="USDT" step="any" min="0">
                     </div>
                 </div>
                 <div class="entry-row">
@@ -382,10 +388,11 @@
                         <input type="number" id="precio3" placeholder="Precio" step="any" min="0">
                     </div>
                     <div class="col">
-                        <span class="label-mini">Cant</span>
-                        <input type="number" id="cant3" placeholder="Unidades" step="any" min="0">
+                        <span class="label-mini">Monto</span>
+                        <input type="number" id="monto3" placeholder="USDT" step="any" min="0">
                     </div>
                 </div>
+                <div class="entry-hint">💡 Introduce el precio de compra y el monto invertido en cada tramo. La cantidad de criptos se calcula automáticamente.</div>
             </div>
 
             <!-- PRECIO DE VENTA -->
@@ -443,7 +450,7 @@
                     <div class="result-box">
                         <div class="label">💰 Beneficio Total</div>
                         <div class="value" id="beneficioTotal">$ --</div>
-                        <div class="sub" id="beneficioSub">Ingresá precio de venta y cantidad</div>
+                        <div class="sub" id="beneficioSub">Ingresá precio de venta</div>
                     </div>
                 </div>
 
@@ -451,7 +458,7 @@
                 <div class="result-box" id="resumenPosicion" style="margin-top: 0;">
                     <div class="label">📋 Resumen de la posición</div>
                     <div style="display:grid; grid-template-columns: 1fr 1fr; gap:6px; margin-top:6px; font-size:0.85rem;">
-                        <div><span style="color:#8b949e;">Inversión total:</span> <strong id="compraTotal">$ --</strong></div>
+                        <div><span style="color:#8b949e;">Inversión total:</span> <strong id="inversionTotal">$ --</strong></div>
                         <div><span style="color:#8b949e;">Venta total:</span> <strong id="ventaTotal">$ --</strong></div>
                         <div><span style="color:#8b949e;">Cantidad total:</span> <strong id="cantidadMostrada">--</strong></div>
                         <div><span style="color:#8b949e;">Comisiones pagadas:</span> <strong id="comisionesPagadas">$ --</strong></div>
@@ -461,28 +468,28 @@
 
             <div class="flex-between" style="margin-top:12px;">
                 <button class="btn-reset" onclick="resetear()">↺ Reiniciar</button>
-                <span style="font-size:0.55rem;color:#484f58;">Promedio ponderado por cantidad</span>
+                <span style="font-size:0.55rem;color:#484f58;">Promedio ponderado por monto invertido</span>
             </div>
 
             <div class="footer-note">
                 ⚠️ El precio mínimo de venta incluye las comisiones de <strong>entrada y salida</strong> (0.1% por lado por defecto).<br>
-                Si usás varias entradas, el precio promedio se pondera según las cantidades de cada tramo.
+                Si usás varias entradas, el precio promedio se pondera según los montos invertidos en cada tramo.
             </div>
         </div>
     </div>
 
     <script>
         function calcular() {
-            // Leer precios y cantidades
+            // Leer precios y montos
             const precios = [
                 parseFloat(document.getElementById('precio1').value),
                 parseFloat(document.getElementById('precio2').value),
                 parseFloat(document.getElementById('precio3').value)
             ];
-            const cantidades = [
-                parseFloat(document.getElementById('cant1').value),
-                parseFloat(document.getElementById('cant2').value),
-                parseFloat(document.getElementById('cant3').value)
+            const montos = [
+                parseFloat(document.getElementById('monto1').value),
+                parseFloat(document.getElementById('monto2').value),
+                parseFloat(document.getElementById('monto3').value)
             ];
 
             const ventaInput = document.getElementById('precioVenta').value;
@@ -490,17 +497,19 @@
             const comisionPorLado = parseFloat(document.getElementById('comision').value) || 0;
             const incluirComision = document.getElementById('incluirComision').checked;
 
-            // Filtrar entradas válidas (precio > 0 y cantidad > 0)
+            // Filtrar entradas válidas (precio > 0 y monto > 0)
             let entradas = [];
             let totalCantidad = 0;
             let totalInvertido = 0;
             let precioPromedio = 0;
 
             for (let i = 0; i < 3; i++) {
-                if (precios[i] > 0 && cantidades[i] > 0) {
-                    entradas.push({ precio: precios[i], cantidad: cantidades[i] });
-                    totalCantidad += cantidades[i];
-                    totalInvertido += precios[i] * cantidades[i];
+                if (precios[i] > 0 && montos[i] > 0) {
+                    // Calcular la cantidad de criptos en este tramo
+                    const cantidad = montos[i] / precios[i];
+                    entradas.push({ precio: precios[i], cantidad: cantidad, monto: montos[i] });
+                    totalCantidad += cantidad;
+                    totalInvertido += montos[i];
                 }
             }
 
@@ -508,20 +517,20 @@
                 // No hay datos
                 document.getElementById('precioPromedio').textContent = '$ --';
                 document.getElementById('precioMinimo').textContent = '$ --';
-                document.getElementById('minimoSub').textContent = '⚠️ Ingresá al menos una entrada válida (precio + cantidad).';
+                document.getElementById('minimoSub').textContent = '⚠️ Ingresá al menos una entrada válida (precio + monto).';
                 document.getElementById('porcentaje').textContent = '-- %';
                 document.getElementById('badgePorcentaje').textContent = 'Esperando datos';
                 document.getElementById('badgePorcentaje').className = 'badge neutral';
                 document.getElementById('beneficioTotal').textContent = '$ --';
-                document.getElementById('beneficioSub').textContent = 'Ingresá precio de venta y cantidad';
-                document.getElementById('compraTotal').textContent = '$ --';
+                document.getElementById('beneficioSub').textContent = 'Ingresá precio de venta';
+                document.getElementById('inversionTotal').textContent = '$ --';
                 document.getElementById('ventaTotal').textContent = '$ --';
                 document.getElementById('cantidadMostrada').textContent = '--';
                 document.getElementById('comisionesPagadas').textContent = '$ --';
                 return;
             }
 
-            // Calcular precio promedio ponderado
+            // Calcular precio promedio ponderado (por monto)
             precioPromedio = totalInvertido / totalCantidad;
             const decPP = precioPromedio < 1 ? 6 : precioPromedio < 100 ? 4 : 2;
             document.getElementById('precioPromedio').textContent = `$ ${precioPromedio.toFixed(decPP)}`;
@@ -544,7 +553,7 @@
             // Mostrar cantidad total
             const decCant = totalCantidad < 1 ? 6 : totalCantidad < 100 ? 4 : 2;
             document.getElementById('cantidadMostrada').textContent = totalCantidad.toFixed(decCant);
-            document.getElementById('compraTotal').textContent = `$ ${totalInvertido.toFixed(2)}`;
+            document.getElementById('inversionTotal').textContent = `$ ${totalInvertido.toFixed(2)}`;
 
             // Si hay precio de venta, calcular todo
             if (venta && venta > 0) {
@@ -601,11 +610,11 @@
 
         function resetear() {
             document.getElementById('precio1').value = '';
-            document.getElementById('cant1').value = '';
+            document.getElementById('monto1').value = '';
             document.getElementById('precio2').value = '';
-            document.getElementById('cant2').value = '';
+            document.getElementById('monto2').value = '';
             document.getElementById('precio3').value = '';
-            document.getElementById('cant3').value = '';
+            document.getElementById('monto3').value = '';
             document.getElementById('precioVenta').value = '';
             document.getElementById('comision').value = '0.10';
             document.getElementById('incluirComision').checked = true;
@@ -613,7 +622,7 @@
         }
 
         // Eventos para cálculo automático
-        document.querySelectorAll('#precio1, #cant1, #precio2, #cant2, #precio3, #cant3, #precioVenta, #comision, #incluirComision').forEach(el => {
+        document.querySelectorAll('#precio1, #monto1, #precio2, #monto2, #precio3, #monto3, #precioVenta, #comision, #incluirComision').forEach(el => {
             el.addEventListener('input', calcular);
             el.addEventListener('change', calcular);
         });
@@ -621,9 +630,9 @@
         // Inicializar con un ejemplo
         window.onload = function() {
             document.getElementById('precio1').value = '100';
-            document.getElementById('cant1').value = '1';
+            document.getElementById('monto1').value = '200';
             document.getElementById('precio2').value = '105';
-            document.getElementById('cant2').value = '0.5';
+            document.getElementById('monto2').value = '100';
             document.getElementById('precioVenta').value = '106';
             calcular();
         };
